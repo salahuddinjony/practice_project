@@ -1,6 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express'
 import cors from 'cors'
 import { StudentRoute } from './app/modules/student/student.route.js'
+import { UserRoute } from './app/modules/user/user.route.js'
 const app = express()
 
 // Middleware 
@@ -9,6 +10,7 @@ app.use(cors())
 
 //application routes
 app.use('/api/v1/students', StudentRoute)
+app.use('/api/v1/users', UserRoute)
 
 // Root route-test
 app.get('/', (req: Request, res: Response) => {
@@ -25,6 +27,7 @@ app.get('/', (req: Request, res: Response) => {
         })
     }
 })
+
 
 
 // 404 handler for undefined routes
@@ -51,4 +54,6 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
             message: 'Internal Server Error'
         })
 })
+
+
 export default app
