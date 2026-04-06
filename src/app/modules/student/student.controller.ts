@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { Types } from 'mongoose'
 import { StudentService } from './student.service.js'
+import AppError from '../../errors/AppError.js'
 // import { validateStudent } from './student.joi.validation.js'
 import { zodValidateStudent } from './student.validation.js'
 
@@ -33,7 +34,7 @@ const isValidStudentId = (id: string) => Types.ObjectId.isValid(id)
 
 //         // Data validation using ZOD
 //         const zodValidationResult = zodValidateStudent(studentData)
-      
+
 
 
 //         // Call the service function to create a student in the database
@@ -76,18 +77,11 @@ const getAllStudents = async (req: Request, res: Response, next: NextFunction) =
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'No students found'
-            })
+            next(new AppError('Failed to retrieve students', 404))
         }
     } catch (error) {
         console.error('Error retrieving students:', error)
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve students',
-            error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
     }
 }
 
@@ -96,33 +90,23 @@ const getStudentById = async (req: Request, res: Response, next: NextFunction) =
     try {
         const studentId = getSanitizedStudentId(req.params.id as string)
         if (!isValidStudentId(studentId)) {
-            res.status(400).json({
-                success: false,
-                message: 'Invalid student id'
-            })
+            next(new AppError('Invalid student id', 400))
             return
         }
-
+ 
         const result = await StudentService.getStudentByIdFromDB(studentId as string)
-        if (result) {
+        if (result) { 
             res.status(200).json({
                 success: true,
                 message: 'Student retrieved successfully',
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'Student not found'
-            })
+            next(new AppError('Student not found', 404));
         }
     } catch (error) {
         console.error('Error retrieving student:', error)
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve student',
-            error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
     }
 }
 
@@ -132,10 +116,7 @@ const updateStudentInfo = async (req: Request, res: Response, next: NextFunction
     try {
         const studentId = getSanitizedStudentId(req.params.id as string)
         if (!isValidStudentId(studentId)) {
-            res.status(400).json({
-                success: false,
-                message: 'Invalid student id'
-            })
+            next(new AppError('Invalid student id', 400))
             return
         }
 
@@ -148,18 +129,11 @@ const updateStudentInfo = async (req: Request, res: Response, next: NextFunction
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'Student not found'
-            })
+            next(new AppError('Student not found', 404)) // Pass an error to the global error handler
         }
     } catch (error) {
         console.error('Error updating student:', error)
-        res.status(500).json({
-            success: false,
-            message: 'Failed to update student',
-            error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
     }
 }
 
@@ -168,10 +142,7 @@ const deleteStudent = async (req: Request, res: Response, next: NextFunction) =>
     try {
         const studentId = getSanitizedStudentId(req.params.id as string)
         if (!isValidStudentId(studentId)) {
-            res.status(400).json({
-                success: false,
-                message: 'Invalid student id'
-            })
+            next(new AppError('Invalid student id', 400))
             return
         }
 
@@ -183,18 +154,11 @@ const deleteStudent = async (req: Request, res: Response, next: NextFunction) =>
                 // data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'Student not found'
-            })
+            next(new AppError('Student not found', 404)) // Pass an error to the global error handler
         }
     } catch (error) {
         console.error('Error deleting student:', error)
-        res.status(500).json({
-            success: false,
-            message: 'Failed to delete student',
-            error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
     }
 
 }

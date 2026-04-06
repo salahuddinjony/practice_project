@@ -3,15 +3,13 @@ import { UserService } from './user.service.js'
 import { zodValidateUserCreate, zodValidateUserUpdate } from './user.validator.js'
 import { Student } from '../student/student.interface.js'
 import { zodValidateStudent } from '../student/student.validation.js'
+import AppError from '../../errors/AppError.js'
 
 const createStudent = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const {password, student: studentData} = req.body // Get user data from the request body
+        const { password, student: studentData } = req.body // Get user data from the request body
         if (!studentData || typeof studentData !== 'object') {
-            res.status(400).json({
-                success: false,
-                message: 'Student payload is required'
-            })
+            next(new AppError('Student payload is required', 400))
             return
         }
         // ZOD validation (kept as comment by request): 
@@ -27,19 +25,13 @@ const createStudent = async (req: Request, res: Response, next: NextFunction) =>
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'Failed to create user'
-            })
+            next(new AppError('Failed to create user', 404))
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         const statusCode = errorMessage.includes('Validation error') ? 400 : 500
-        res.status(statusCode).json({
-            success: false,
-            message: 'Failed to create user',
-            error: errorMessage
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
+
     }
 }
 
@@ -54,17 +46,11 @@ const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'Failed to retrieve users'
-            })
+            next(new AppError('Failed to retrieve users', 404))
         }
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve users',
-            error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
+
     }
 }
 
@@ -80,17 +66,10 @@ const getUserById = async (req: Request, res: Response, next: NextFunction) => {
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'User not found'
-            })
+            next(new AppError('User not found', 404))
         }
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve user',
-            error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
     }
 }
 
@@ -108,19 +87,13 @@ const updateUserInfo = async (req: Request, res: Response, next: NextFunction) =
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'User not found'
-            })
+            next(new AppError('User not found', 404))
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         const statusCode = errorMessage.includes('Validation error') ? 400 : 500
-        res.status(statusCode).json({
-            success: false,
-            message: 'Failed to update user',
-            error: errorMessage
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
+
     }
 }
 
@@ -136,17 +109,11 @@ const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
                 data: result
             })
         } else {
-            res.status(404).json({
-                success: false,
-                message: 'User not found'
-            })
+            next(new AppError('User not found', 404))
         }
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to delete user',
-            error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        next(new AppError(error instanceof Error ? error.message : 'Unknown error', 500)) // Pass the error to the global error handler
+
     }
 }
 

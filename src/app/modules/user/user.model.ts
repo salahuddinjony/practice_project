@@ -3,7 +3,7 @@ import { User } from './user.interface.js';
 import { timeStamp } from 'console';
 import bcrypt from 'bcrypt';
 import config from '../../config/index.js';
-
+// Define the User schema using Mongoose, which represents the structure of the user documents in the MongoDB database. The schema includes fields for id, password, needsPasswordReset, role, isDeleted, and status, along with their respective data types, validation rules, and default values. Additionally, it includes timestamps to automatically track when each user document is created and last updated.
 export const userSchema = new Schema<User>({
     id: {
         type: String,
@@ -31,6 +31,7 @@ export const userSchema = new Schema<User>({
     isDeleted: {
         type: Boolean,
         default: false,
+        select: false, // This option ensures that the isDeleted field is not included in query results by default, which can help prevent confusion and ensure that soft-deleted users are not accidentally included in API responses or logs.
     },
     status: {
         type: String,
@@ -61,7 +62,17 @@ userSchema.post('save', function (doc) {
     // (doc as any).password = undefined // This will remove the password field from the document before it is sent back in the response, ensuring that the hashed password is not exposed in any API responses or logs.
 })
 
-// 
+// find middleware/hooks
+userSchema.pre('find', function () {
+    // This middleware will run before any find operation (find, findOne, findById, etc.) is executed. It modifies the query to exclude documents where the isDeleted field is set to true, effectively implementing a soft delete mechanism. This means that when you query for users, you will only get those that are not marked as deleted.
+    this.find({ isDeleted: { $ne: true } });
+});
+
+// findOne middleware/hooks
+userSchema.pre('findOne', function () {
+    // Similar to the pre 'find' middleware, this will run before any findOne operation is executed and will modify the query to exclude documents where isDeleted is true, ensuring that soft-deleted users are not returned in findOne queries.
+    this.find({ isDeleted: { $ne: true } });
+});
 
 // Create the User model using the schema
 export const UserModel = model<User>('User', userSchema);
