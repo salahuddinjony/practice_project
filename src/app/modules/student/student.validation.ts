@@ -1,6 +1,6 @@
 // zod  
 import { z } from 'zod';
-import { is } from 'zod/locales';
+
 
 // Name Schema
 const userNameValidationSchema = z.object({
@@ -83,13 +83,7 @@ export const studentValidationSchema = z.object({
     isDeleted: z.boolean().default(false),
 });
 
-export const zodValidateStudent = (data: unknown) => {
-    const result = studentValidationSchema.safeParse(data);
+export const studentValidation = {
+    studentValidationSchema
 
-    if (!result.success) {
-        const errors = result.error.issues.map(err => err.message);
-        throw new Error(`Validation error: ${errors.join(', ')}`);
-    }
-
-    return result.data;
-};
+}

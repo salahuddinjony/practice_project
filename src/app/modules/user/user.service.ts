@@ -15,7 +15,7 @@ const createStudentIntoDB = async (password: string, StudentData: Student) => {
     userData.role = 'student'
 
     //set id 
-    userData.id = "121212";
+    userData.id = "121213";
     // Create a new user document in the database with the provided password and role
     const createNewUser = await UserModel.create(userData) // Create a new user document in the database with the provided password and role
 
