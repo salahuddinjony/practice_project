@@ -3,7 +3,7 @@ import { z } from 'zod'
 import AppError from '../../errors/AppError.js'
 // middleware to log incoming requests for debugging
 
-const valivation = (schema: z.ZodTypeAny) => {
+const validation = (schema: z.ZodTypeAny) => {
     return async (req: Request, _res: Response, next: NextFunction) => {
         try {
             // console.log(`Incoming request: ${req.method} ${req.originalUrl}`)
@@ -24,4 +24,4 @@ const valivation = (schema: z.ZodTypeAny) => {
     }
 }
 
-export default valivation
+export default validation

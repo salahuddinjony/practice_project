@@ -3,6 +3,7 @@ import { UserService } from './user.service.js'
 import AppError from '../../errors/AppError.js'
 import sendResponse from '../../utils/response/responseSend.js'
 import catchAsync from '../../utils/CatchAsync.js'
+import { checkCommonValidation } from '../../utils/checkCommonValidation.js'
 
 const createStudent = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const { password, student: studentData } = req.body // Get user data from the request body
@@ -14,7 +15,7 @@ const createStudent = catchAsync(async (req: Request, res: Response, next: NextF
     // const zodValidationResult = zodValidateStudent(studentData)
 
     // Call the service function to create the user in the database
-    const result = await UserService.createStudentIntoDB(password, studentData)
+    const result = await UserService.createStudentIntoDB(password, studentData, next)
 
     if (result) { // Check if result is not null or undefined
         sendResponse(res, {
@@ -45,7 +46,8 @@ const getAllUsers = catchAsync(async (req: Request, res: Response, next: NextFun
 
 // get user by ID-GET
 const getUserById = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.params.id // Get user ID from the request parameters
+    const userId = checkCommonValidation.validateId(req.params.id as string, next)
+
     const result = await UserService.getUserByIdFromDB(userId as string)
     if (result) { // Check if result is not null or undefined
         sendResponse(res, {
@@ -61,7 +63,7 @@ const getUserById = catchAsync(async (req: Request, res: Response, next: NextFun
 
 // update user info-PUT
 const updateUserInfo = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.params.id // Get user ID from the request parameters
+    const userId = checkCommonValidation.validateId(req.params.id as string, next)
     const updatedData = req.body // Get updated user data from the request body
     // const validatedData = zodValidateUserUpdate(updatedData)
     const result = await UserService.updateUserInfoInDB(userId as string, updatedData)
@@ -80,7 +82,7 @@ const updateUserInfo = catchAsync(async (req: Request, res: Response, next: Next
 
 // delete user-DELETE
 const deleteUser = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.params.id // Get user ID from the request parameters
+    const userId = checkCommonValidation.validateId(req.params.id as string, next)
     const result = await UserService.deleteUserFromDB(userId as string)
     if (result) { // Check if result is not null or undefined
         sendResponse(res, {

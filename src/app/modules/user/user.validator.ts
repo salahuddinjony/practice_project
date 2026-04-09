@@ -2,11 +2,17 @@
 import z from 'zod';
 import { studentValidationSchema } from '../student/student.validation.js';
 
-
+// Define the validation schema for creating a user
 const createUserValidationSchema = z.object({
     password: z.string().min(6, 'Password must be at least 6 characters long')
 });
 
+// For creating a student user, we need to validate both the user data and the student data. We can create a combined schema for this purpose.
+const createStudentPayloadSchema = z.object({
+    password: z.string().min(6, 'Password must be at least 6 characters long'),
+    student: studentValidationSchema
+})
+// For update, all fields are optional
 const updateUserValidationSchema = z.object({
     password: z.string(
         { message: 'Password must be a string' }
@@ -18,15 +24,11 @@ const updateUserValidationSchema = z.object({
     isDeleted: z.boolean().optional(),
     status: z.enum(['in-progress', 'active', 'inactive', 'pending', 'blocked']).optional(),
 });
-const createStudentPayloadSchema = z.object({
-    password: z.string().optional(),
-    student: studentValidationSchema
-})
 
 export const userValidations = {
     createUserValidationSchema,
     updateUserValidationSchema,
-    createStudentPayloadSchema  
+    createStudentPayloadSchema
 }
 
 

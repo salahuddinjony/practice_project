@@ -56,8 +56,13 @@ export const studentValidationSchema = z.object({
         message: "Gender must be 'male', 'female', or 'other'",
     }),
 
-    dateOfBirth: z.string(),
-
+    dateOfBirth: z.coerce
+        .date({
+            message: 'Date of birth is required and must be a valid date',
+        })
+        .refine((date) => date < new Date(), {
+            message: 'Date of birth must be in the past',
+        }),
     email: z.string()
         .email('Invalid email address')
         .refine((email) => {
@@ -80,10 +85,15 @@ export const studentValidationSchema = z.object({
     localGuardian: localGuardianValidationSchema,
 
     profileImage: z.string().optional(),
+    admissionSemester: z.string({ message: 'Admission semester is required' }).min(1, 'Admission semester is required'),
     isDeleted: z.boolean().default(false),
 });
 
+// For update, all fields are optional
+const updateStudentValidationSchema = z.object({
+    student: studentValidationSchema.partial()
+});
 export const studentValidation = {
-    studentValidationSchema
-
+    studentValidationSchema,
+    updateStudentValidationSchema
 }

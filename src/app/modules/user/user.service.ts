@@ -3,19 +3,28 @@ import config from '../../config/index.js'
 import { Student } from '../student/student.interface.js'
 import { StudentModel } from '../student/student.model.js'
 import { User } from './user.interface.js'
-
+import { AcademicSemesterModel } from '../academicSemester/academicSemester.model.js'
 import { UserModel } from './user.model.js'
 import { UpdateQuery } from 'mongoose'
+import { AcademicSemester } from '../academicSemester/academicSemester.interface.js'
+import { get } from 'http'
+import AppError from '../../errors/AppError.js'
+import { UserUtils } from './user.utils.js'
 
 // Service function to create a user in the database
-const createStudentIntoDB = async (password: string, StudentData: Student) => {
+const createStudentIntoDB = async (password: string, StudentData: Student, next: Function) => {
     // Simulating saving the user data to the database
     const userData: Partial<User> = {}
     userData.password = password ?? config.DEFAULT_USER_PASSWORD
     userData.role = 'student'
+    try {
+        userData.id = await UserUtils.generatedIStudentd(StudentData.admissionSemester.toString())
+    } catch (error) {
+        next(new AppError('Failed to generate student ID', 500))
+        return
+    }
 
-    //set id 
-    userData.id = "121213";
+
     // Create a new user document in the database with the provided password and role
     const createNewUser = await UserModel.create(userData) // Create a new user document in the database with the provided password and role
 
@@ -53,6 +62,9 @@ const updateUserInfoInDB = async (id: string, updatedData: UpdateQuery<User>) =>
 // delete user from database
 const deleteUserFromDB = async (id: string) => {
     const deletedUser = await UserModel.findByIdAndUpdate(id, { isDeleted: true }, { returnDocument: 'after' })
+    if (deletedUser) {
+        await StudentModel.findOneAndUpdate({ user: deletedUser._id }, { isDeleted: true }) // This will find the student document associated with the deleted user and mark it as deleted by setting the isDeleted field to true, ensuring that both the user and the associated student record are marked as deleted in the database.
+    } 
     return deletedUser // This will return the deleted user document if it was found and deleted, or null if no document with the specified ID was found
 }
 export const UserService = {

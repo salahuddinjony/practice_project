@@ -5,7 +5,7 @@ type responseT<T>={
     statusCode: number,
     success: boolean,
     message: string,
-    data: T
+    data?: T
 }
 // Utility function to send a standardized response
 const sendResponse = <T>(res: Response, data:responseT<T>) => {

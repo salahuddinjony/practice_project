@@ -5,13 +5,9 @@ import AppError from '../../errors/AppError.js'
 // import { validateStudent } from './student.joi.validation.js'
 import sendResponse from '../../utils/response/responseSend.js'
 import catchAsync from '../../utils/CatchAsync.js'
+import { checkCommonValidation } from '../../utils/checkCommonValidation.js'
 
 
-// Utility function to sanitize and validate student ID
-const getSanitizedStudentId = (id: string) => id.trim()
-
-// Utility function to check if a student ID is a valid MongoDB ObjectId
-const isValidStudentId = (id: string) => Types.ObjectId.isValid(id)
 
 
 // Get all students-GET
@@ -28,14 +24,24 @@ const getAllStudents = catchAsync(async (req: Request, res: Response, next: Next
         next(new AppError('Failed to retrieve students', 404))
     }
 })
+// Get all deleted students-GET
+const getAllDeletedStudents = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await StudentService.getAllDeletedStudentsFromDB()
+    if (result) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: 'Students retrieved successfully',
+            data: result
+        })
+    } else {
+        next(new AppError('Failed to retrieve students', 404))
+    }
+})
 
 // Get student by ID-GET
 const getStudentById = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const studentId = getSanitizedStudentId(req.params.id as string)
-    if (!isValidStudentId(studentId)) {
-        next(new AppError('Invalid student id', 400))
-        return
-    }
+    const studentId = checkCommonValidation.validateId(req.params.id as string, next)
 
     const result = await StudentService.getStudentByIdFromDB(studentId as string)
     if (result) {
@@ -54,11 +60,7 @@ const getStudentById = catchAsync(async (req: Request, res: Response, next: Next
 // update student-PATCH
 
 const updateStudentInfo = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const studentId = getSanitizedStudentId(req.params.id as string)
-    if (!isValidStudentId(studentId)) {
-        next(new AppError('Invalid student id', 400))
-        return
-    }
+    const studentId = checkCommonValidation.validateId(req.params.id as string, next)
 
     const updatedData = req.body?.student ?? req.body
     const result = await StudentService.updateStudentInfoInDB(studentId as string, updatedData)
@@ -76,11 +78,7 @@ const updateStudentInfo = catchAsync(async (req: Request, res: Response, next: N
 
 // delete student-DELETE
 const deleteStudent = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const studentId = getSanitizedStudentId(req.params.id as string)
-    if (!isValidStudentId(studentId)) {
-        next(new AppError('Invalid student id', 400))
-        return
-    }
+    const studentId = checkCommonValidation.validateId(req.params.id as string, next)
 
     const result = await StudentService.deleteStudentFromDB(studentId as string)
     if (result) {
@@ -95,11 +93,33 @@ const deleteStudent = catchAsync(async (req: Request, res: Response, next: NextF
     }
 
 })
+
+// Restore deleted students if their admission semester is restored
+const restoreDeletedStudents = catchAsync(async (req: Request, res: Response) => {
+    const result = await StudentService.restoreDeletedStudentsInDB();
+    if(result.count > 0) {
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: result.message,
+            data: result.students
+        })
+    } else {
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: result.message,  
+            
+        })
+    }
+
+});
 export const StudentController = {
     // createStudent,
     getAllStudents,
+    getAllDeletedStudents,
     getStudentById,
     updateStudentInfo,
-    deleteStudent
-
+    deleteStudent,
+    restoreDeletedStudents
 }

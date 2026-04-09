@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express'
 import { UserController } from './user.controller.js'
 import { userValidations } from './user.validator.js'
-import valivation from '../../middleware/validator/validetResquest.js'
+import validation from '../../middleware/validator/validetResquest.js'
 
 // Create a router instance
 const router = express.Router()
@@ -13,7 +13,7 @@ const router = express.Router()
 // Route for creating a user
 router.post(
     '/create-student',
-    valivation(userValidations.createStudentPayloadSchema), // Validate the request body against the createStudentPayloadSchema
+    validation(userValidations.createStudentPayloadSchema), // Validate the request body against the createStudentPayloadSchema
     UserController.createStudent
 )
 
@@ -24,9 +24,13 @@ router.get('/get-all-users', UserController.getAllUsers)
 router.get('/get-user/:id', UserController.getUserById)
 
 // Route for updating user info
-router.patch('/update-user/:id', UserController.updateUserInfo)
-
+router.patch(
+    '/update-user/:id',
+    validation(userValidations.updateUserValidationSchema),
+    UserController.updateUserInfo
+)
+ 
 // Route for deleting a user
 router.delete('/delete-user/:id', UserController.deleteUser)
-
+ 
 export const UserRoute = router
