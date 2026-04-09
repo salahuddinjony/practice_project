@@ -1,13 +1,9 @@
-import { object } from 'joi'
 import config from '../../config/index.js'
 import { Student } from '../student/student.interface.js'
 import { StudentModel } from '../student/student.model.js'
 import { User } from './user.interface.js'
-import { AcademicSemesterModel } from '../academicSemester/academicSemester.model.js'
 import { UserModel } from './user.model.js'
 import { UpdateQuery } from 'mongoose'
-import { AcademicSemester } from '../academicSemester/academicSemester.interface.js'
-import { get } from 'http'
 import AppError from '../../errors/AppError.js'
 import { UserUtils } from './user.utils.js'
 
@@ -52,6 +48,11 @@ const getUserByIdFromDB = async (id: string) => {
 }
 // Service function to update user info in the database
 const updateUserInfoInDB = async (id: string, updatedData: UpdateQuery<User>) => {
+    //before updating check its deleted or not if not then update it and also check if the updated admission semester reference is valid or not
+    const existingUser = await UserModel.findOne({ _id: id, isDeleted: false });
+    if (!existingUser) {
+        return null; // No user found with the specified ID or it is already deleted
+    }
     const updatedUser = await UserModel.findByIdAndUpdate(id, updatedData, {
         returnDocument: 'after',
         runValidators: true,
@@ -61,10 +62,12 @@ const updateUserInfoInDB = async (id: string, updatedData: UpdateQuery<User>) =>
 
 // delete user from database
 const deleteUserFromDB = async (id: string) => {
-    const deletedUser = await UserModel.findByIdAndUpdate(id, { isDeleted: true }, { returnDocument: 'after' })
-    if (deletedUser) {
-        await StudentModel.findOneAndUpdate({ user: deletedUser._id }, { isDeleted: true }) // This will find the student document associated with the deleted user and mark it as deleted by setting the isDeleted field to true, ensuring that both the user and the associated student record are marked as deleted in the database.
-    } 
+    const deletedUser = await UserModel.findByIdAndUpdate({ _id: id, isDeleted: false }, { isDeleted: true }, { returnDocument: 'after' })
+    if (!deletedUser) {
+        return null; // No user found with the specified ID or it is already deleted} 
+    }
+    // Also mark the associated student record as deleted by setting the isDeleted field to true, ensuring that both the user and the associated student record are marked as deleted in the database.
+    await StudentModel.findOneAndUpdate({ user: deletedUser._id }, { isDeleted: true }) // This will find the student document associated with the deleted user and mark it as deleted by setting the isDeleted field to true, ensuring that both the user and the associated student record are marked as deleted in the database.
     return deletedUser // This will return the deleted user document if it was found and deleted, or null if no document with the specified ID was found
 }
 export const UserService = {

@@ -11,7 +11,7 @@ const academicDeptSchema = new Schema<AcademicDept>({
         ref: 'AcademicFaculty',
         required: true
     },
-    isDeleted: { type: Boolean, default: false }
+    isDeleted: { type: Boolean, default: false,select: false }
 }, {
     timestamps: true
 });
@@ -58,7 +58,7 @@ academicDeptSchema.pre('findOneAndUpdate', async function (next) {
         const academicFacultyId = (updateData as any).academicFaculty;
 
         if (academicFacultyId) { 
-            // Check if faculty exists (recommended)
+            // Check if faculty exists 
             const AcademicFacultyModel = model('AcademicFaculty');
             const facultyExists = await AcademicFacultyModel.exists({
                 _id: academicFacultyId,
@@ -69,7 +69,7 @@ academicDeptSchema.pre('findOneAndUpdate', async function (next) {
                 throw new Error('Invalid academic faculty reference');
             }
         }
-
+        // Check name uniqueness within the same faculty if name or academicFaculty is being updated
         if ((updateData as any).name && academicFacultyId) {
             //  Check duplicate (exclude self in case of update)
             const existingDept = await model('AcademicDept').exists({

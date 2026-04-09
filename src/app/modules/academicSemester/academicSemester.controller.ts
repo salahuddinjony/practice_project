@@ -108,7 +108,10 @@ const restoreDeletedSemesters = catchAsync(async (req: Request, res: Response, n
             message: 'Deleted academic semesters restored successfully',
             data: result
         })
-    } else {
+    }
+    else if(result === null) {
+        next(new AppError('There are no deleted academic semesters to restore', 404))
+    }else {
         next(new AppError('Failed to restore deleted academic semesters', 404))
     }
 })

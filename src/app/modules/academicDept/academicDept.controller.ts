@@ -88,10 +88,49 @@ const deleteAcademicDept = catchAsync(async (req: Request, res: Response, next: 
 
 })
 
+//get all deleted academic departments-GET
+const getAllDeletedAcademicDepts = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await AcademicDeptService.getAllDeletedAcademicDeptsFromDB()
+    if (result) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: 'Deleted academic departments retrieved successfully',
+            data: result
+        })
+    }
+    else if (result === null) {
+        next(new AppError('There are no deleted academic departments', 404))
+    }
+    else {
+        next(new AppError('Failed to retrieve deleted academic departments', 404))
+    }
+})
+
+// Restore all deleted academic departments-PATCH
+const restoreDeletedAcademicDepts = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await AcademicDeptService.restoreDeletedAcademicDeptsInDB()
+    if (result) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: 'Deleted academic departments restored successfully',
+            data: result
+        })
+    } 
+    else if(result === null) {  
+        next(new AppError('There are no deleted academic departments to restore', 404))
+    }else {
+        next(new AppError('Failed to restore deleted academic departments', 404))
+    }
+})
+
 export const AcademicDeptController = {
     createAcademicDept,
     getAllAcademicDepts,
     getAcademicDeptById,
     updateAcademicDeptInfo,
-    deleteAcademicDept
+    deleteAcademicDept,
+    getAllDeletedAcademicDepts,
+    restoreDeletedAcademicDepts
 }

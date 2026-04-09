@@ -30,6 +30,11 @@ const getSemesterByIdFromDB = async (id: string) => {
 
 // update semester info
 const updateSemesterInfoInDB = async (id: string, updatedData: Partial<Omit<AcademicSemester, 'id'>>) => {
+    // before updating check its deleted or not if not then update it and also validate the updated semester name and code combination
+    const existingSemester = await AcademicSemesterModel.findOne({ _id: id, isDeleted: false });
+    if (!existingSemester) {
+        return null; // No semester found with the specified ID or it is already deleted
+    }
     const updatedSemester = await AcademicSemesterModel.findByIdAndUpdate(id, updatedData, { returnDocument: 'after' });
     return updatedSemester;
 }
@@ -48,11 +53,19 @@ const deleteSemesterFromDB = async (id: string) => {
 }
 // Restore all deleted semesters from the database
 const restoreDeletedSemestersInDB = async () => {
-    const restoredSemesters = await AcademicSemesterModel.updateMany(
+    //1st check if there are any deleted semesters, if there are then restore them by setting isDeleted to false
+    const deletedSemesters = await AcademicSemesterModel.find({ isDeleted: true });
+    if (deletedSemesters.length === 0) {
+        return null; // No deleted semesters found to restore
+    }
+    await AcademicSemesterModel.updateMany(
         { isDeleted: true },  // Filter to find all documents that are currently marked as deleted
         { isDeleted: false } // Update operation to set isDeleted to false, effectively restoring the deleted semesters
     );
-    return restoredSemesters; // This will return the result of the update operation, which includes information about how many documents were modified
+
+    //then show latest restored semesters by finding them again with isDeleted false and also sort them by updatedAt in descending order to show the latest restored semesters first    
+    const latestRestoredSemesters = await AcademicSemesterModel.find({ isDeleted: false }).sort({ updatedAt: -1 });
+    return latestRestoredSemesters; // This will return the result of the update operation, which includes information about how many documents were modified
 }
 
 //Restore a single deleted semester by ID

@@ -5,6 +5,7 @@ import { UserModel } from "../user/user.model.js"
 import { AcademicSemesterModel } from "../academicSemester/academicSemester.model.js"
 
 
+
 // // Service function to create a student in the database
 // const createStudentIntoDB = async (studentData: Student) => {
 //     // Simulating saving the student data to the database
@@ -15,7 +16,18 @@ import { AcademicSemesterModel } from "../academicSemester/academicSemester.mode
 // Service function to get all students from the database
 const getAllStudentsFromDB = async () => {
     // Simulating fetching all students from the database
-    const result = await StudentModel.find({ isDeleted: false })
+    const result = await StudentModel.find({
+        isDeleted: false
+    })
+        .populate('user')
+        .populate('admissionSemester')
+        .populate({
+            path: 'academicDept',
+            populate: {
+                path: 'academicFaculty',
+            }
+        })
+
     // const result = await StudentModel.find().populate('user').populate('admissionSemester')
     return {
         count: result.length,
@@ -36,7 +48,14 @@ const getAllDeletedStudentsFromDB = async () => {
 // Service function to get a student by ID from the database
 const getStudentByIdFromDB = async (id: string) => {
     // Simulating fetching a student by ID from the database
-    const result = await StudentModel.findById(id, { isDeleted: false })
+    const result = await StudentModel.findById(id, { isDeleted: false }).populate('user')
+        .populate('admissionSemester')
+        .populate({
+            path: 'academicDept',
+            populate: {
+                path: 'academicFaculty',
+            }
+        })
     return result
 }
 //use aggregation pipeline to get student by id, this will allow us to perform more complex queries and operations on the data, such as filtering, grouping, and sorting, which can be useful for retrieving specific information about a student based on their ID.
@@ -49,6 +68,11 @@ const getStudentByIdFromDB = async (id: string) => {
 // }
 //update info 
 const updateStudentInfoInDB = async (id: string, updatedData: Partial<Omit<Student, 'id' & 'email'>>) => { // here partial means the updatedData can have any subset of the Student properties, making it flexible for updates
+    //before updating check its deleted or not if not then update it and also check if the updated admission semester reference is valid or not
+    const existingStudent = await StudentModel.findOne({ _id: id, isDeleted: false });
+    if (!existingStudent) {
+        return null; // No student found with the specified ID or it is already deleted
+    }
     const updatedStudent = await StudentModel.findByIdAndUpdate(id, updatedData, { returnDocument: 'after' }) // This option ensures that the updated document is returned after the update operation is completed
     return updatedStudent
 }
@@ -80,14 +104,20 @@ const deleteStudentFromDB = async (id: string) => {
 // Restore all deleted students from the database if admissionSemester is restored
 const restoreDeletedStudentsInDB = async () => {
 
+    // 1. Get all deleted students with required references
+    const deletedStudents = await StudentModel.find({ isDeleted: true })
+        .populate({ path: 'user', select: 'isDeleted' })
+        .populate({ path: 'admissionSemester', select: 'isDeleted' })
+        .populate({
+            path: 'academicDept',
+            select: 'isDeleted academicFaculty', // We need to check if the department is deleted and also get the academic faculty reference to check if it is deleted or not
+            populate: {
+                path: 'academicFaculty',
+                select: 'isDeleted'
+            }
+        });
 
-    // 1. Get unique semester IDs directly (optimized)
-    const semesterIds = await StudentModel.distinct('admissionSemester', {
-        isDeleted: true
-    });
-
-    // No deleted students
-    if (semesterIds.length === 0) {
+    if (deletedStudents.length === 0) {
         return {
             count: 0,
             students: [],
@@ -95,37 +125,43 @@ const restoreDeletedStudentsInDB = async () => {
         };
     }
 
-    // 2. Find only restored semesters
-    const restoredSemesters = await AcademicSemesterModel.find({
-        _id: { $in: semesterIds },
-        isDeleted: false
-    }).select('_id'); // Only select the _id field to minimize data transfer
+    // 2. Filter valid students (whose all references are NOT deleted)
+    const validStudents = deletedStudents.filter(student => {
+        const user = student.user as any;
+        const semester = student.admissionSemester as any;
+        const dept = student.academicDept as any;
 
-    const validSemesterIds = restoredSemesters.map(s => s._id);
-    if (validSemesterIds.length === 0) {
+        return (
+            user && !user.isDeleted &&
+            semester && !semester.isDeleted &&
+            dept && !dept.isDeleted &&
+            dept.academicFaculty && !dept.academicFaculty.isDeleted
+        );
+    });
+
+    // 3. If no valid students
+    if (validStudents.length === 0) {
         return {
             count: 0,
             students: [],
-            message: 'No deleted students can be restored because their admission semesters are still deleted'
+            message:
+                'No students can be restored because their associated user, semester, department, or faculty is still deleted'
         };
     }
 
-    // 3. Restore students with valid admission semesters
+    // 4. Extract valid student IDs
+    const validStudentIds = validStudents.map(s => s._id);
+
+    // 5. Restore only valid students
     await StudentModel.updateMany(
-        {
-            isDeleted: true,
-            admissionSemester: { $in: validSemesterIds }
-        },
-        {
-            isDeleted: false
-        },
+        { _id: { $in: validStudentIds } },
+        { isDeleted: false }
+    );
 
-    )
+    // 6. Return restored students
     const result = await StudentModel.find({
-        isDeleted: false,
-        admissionSemester: { $in: validSemesterIds }
+        _id: { $in: validStudentIds }
     }).select('name email admissionSemester');
-
 
     return {
         count: result.length,

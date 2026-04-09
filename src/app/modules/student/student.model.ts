@@ -157,7 +157,7 @@ const studentSchema = new Schema<Student>({
          required: [true, 'Admission semester is required'],
          unique: false // This field does not need to be unique since multiple students can be admitted in the same semester, so we set unique to false to allow for duplicate values in this field.
         },
-   
+    academicDept: { type: Schema.Types.ObjectId, ref: 'AcademicDept', required: [true, 'Academic department is required'] },    
     isDeleted: { type: Boolean, default: false, select: false } // This field will be used to mark a student as deleted without actually removing the document from the database, which allows for soft deletion and easier data recovery if needed.
 }, {
     timestamps: true, // This will automatically add createdAt and updatedAt fields to the schema
