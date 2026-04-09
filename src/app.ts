@@ -2,34 +2,24 @@ import express, { NextFunction, Request, Response } from 'express'
 import cors from 'cors'
 import { StudentRoute } from './app/modules/student/student.route.js'
 import { UserRoute } from './app/modules/user/user.route.js'
-import { globalErrorHandler, notFoundHandler } from './app/middleware/globalErrorHandler/error.handler.js'
+import { globalErrorHandler, notFoundHandler } from './app/middleware/GlobalErrorHandler/error.handler.js'
+import rootRoute from './app/utils/server_check/initial.route.js'
+import router from './app/routes/index.js'
+
+
+// Create an instance of the Express application
 const app = express()
 
 // Middleware 
 app.use(express.json())
 app.use(cors())
 
-//application routes
-app.use('/api/v1/students', StudentRoute)
-app.use('/api/v1/users', UserRoute)
+//application all routes
+app.use('/api/v1', router)
+
 
 // Root route-test
-app.get('/', (req: Request, res: Response) => {
-    try {
-        res.status(200).json({
-            success: true,
-            message: 'Welcome to the Student Management System API'
-        })
-    } catch (error) {
-        console.error('Error in root route:', error)
-        res.status(500).json({
-            success: false,
-            message: 'Internal Server Error'
-        })
-    }
-})
-
-
+app.get('/', rootRoute)
 
 // 404 handler for undefined routes
 app.use(notFoundHandler)

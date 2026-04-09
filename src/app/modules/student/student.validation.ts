@@ -1,6 +1,6 @@
 // zod  
 import { z } from 'zod';
-import { is } from 'zod/locales';
+
 
 // Name Schema
 const userNameValidationSchema = z.object({
@@ -56,8 +56,13 @@ export const studentValidationSchema = z.object({
         message: "Gender must be 'male', 'female', or 'other'",
     }),
 
-    dateOfBirth: z.string(),
-
+    dateOfBirth: z.coerce
+        .date({
+            message: 'Date of birth is required and must be a valid date',
+        })
+        .refine((date) => date < new Date(), {
+            message: 'Date of birth must be in the past',
+        }),
     email: z.string()
         .email('Invalid email address')
         .refine((email) => {
@@ -80,16 +85,15 @@ export const studentValidationSchema = z.object({
     localGuardian: localGuardianValidationSchema,
 
     profileImage: z.string().optional(),
+    admissionSemester: z.string({ message: 'Admission semester is required' }).min(1, 'Admission semester is required'),
     isDeleted: z.boolean().default(false),
 });
 
-export const zodValidateStudent = (data: unknown) => {
-    const result = studentValidationSchema.safeParse(data);
-
-    if (!result.success) {
-        const errors = result.error.issues.map(err => err.message);
-        throw new Error(`Validation error: ${errors.join(', ')}`);
-    }
-
-    return result.data;
-};
+// For update, all fields are optional
+const updateStudentValidationSchema = z.object({
+    student: studentValidationSchema.partial()
+});
+export const studentValidation = {
+    studentValidationSchema,
+    updateStudentValidationSchema
+}

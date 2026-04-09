@@ -95,7 +95,7 @@ const studentSchema = new Schema<Student>({
         trim: true,
         required: [true, 'Gender is required']
     },
-    dateOfBirth: { type: String, required: [true, 'Date of birth is required'] },
+    dateOfBirth: { type: Date, required: [true, 'Date of birth is required'] },
     email: {
         type: String,
         trim: true,
@@ -151,6 +151,12 @@ const studentSchema = new Schema<Student>({
         required: [true, 'Local guardian information is required']
     },
     profileImage: { type: String },
+    admissionSemester: { 
+        type: Schema.Types.ObjectId,
+         ref: 'AcademicSemester', 
+         required: [true, 'Admission semester is required'],
+         unique: false // This field does not need to be unique since multiple students can be admitted in the same semester, so we set unique to false to allow for duplicate values in this field.
+        },
    
     isDeleted: { type: Boolean, default: false, select: false } // This field will be used to mark a student as deleted without actually removing the document from the database, which allows for soft deletion and easier data recovery if needed.
 }, {
@@ -190,24 +196,25 @@ studentSchema.pre('findOneAndUpdate', function () {
     }
 })
 
+
 // post hook for findOneAndUpdate method, this will run after updating data in the database, we can use this to perform any necessary operations or actions after the data has been updated. In this case, it simply logs the document that was updated and a message indicating that the hook has completed.
 studentSchema.post('findOneAndUpdate', function () {
     // console.log(this, 'Hook after updating data')
 })
-studentSchema.pre('findOne', function () {
-    this.findOne({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
-    // this.where({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
-})
+// studentSchema.pre('findOne', function () {
+//     this.findOne({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
+//     // this.where({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
+// })
 // studentSchema.pre('aggregate', function () {
 //     //here unshift is used to add a new stage at the beginning of the aggregation pipeline, which will filter out any documents that have been marked as deleted (isDeleted: true) before any other stages in the pipeline are executed. This ensures that the aggregation results only include active documents and exclude any that have been marked as deleted.
 //     this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } }) // This will add a match stage at the beginning of the aggregation pipeline to filter out any documents that have been marked as deleted, ensuring that only active documents are included in the aggregation results.
 // })
 //middleware for find method, this will run before finding data in the database, we can use this to perform any necessary operations or validations before the data is retrieved. In this case, it simply logs the query being executed and a message indicating that the hook is running.
-studentSchema.pre('find', function () {
-    // console.log(this.getQuery(), 'Hook before finding data')
-    this.find({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
-    // this.where({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
-})
+// studentSchema.pre('find', function () {
+//     // console.log(this.getQuery(), 'Hook before finding data')
+//     this.find({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
+//     // this.where({ isDeleted: { $ne: true } }) // This will add a condition to the query to only return documents where the isDeleted field is false, effectively filtering out any documents that have been marked as deleted.
+// })
 
 // // post hook for find method, this will run after finding data in the database, we can use this to perform any necessary operations or actions after the data has been retrieved. In this case, it simply logs the document that was found and a message indicating that the hook has completed.
 // studentSchema.post('find', function (docs, next) {

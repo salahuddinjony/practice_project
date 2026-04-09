@@ -29,7 +29,7 @@ export type Student = {
     user: Types.ObjectId; // Reference to the User document, this will store the ObjectId of the associated user document in the database, allowing us to establish a relationship between the student and the user.
     name: userName;
     gender: "male" | "female" | "other";
-    dateOfBirth: string;
+    dateOfBirth: Date;
     email: string;
     contactNo: string;
     emergencyContactNo: string;
@@ -39,6 +39,7 @@ export type Student = {
     guardian: guradian,
     localGuardian: localGuardian,
     profileImage?: string | undefined;
+    admissionSemester: Types.ObjectId; // Reference to the AcademicSemester document, this will store the ObjectId of the associated academic semester document in the database, allowing us to establish a relationship between the student and their admission semester.
     isDeleted?: boolean;
 
 }
