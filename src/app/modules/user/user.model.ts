@@ -55,6 +55,22 @@ userSchema.pre('save', async function () {
     }
     // console.log(this, 'Hook before saving data') 
 })
+userSchema.pre('findOneAndUpdate', function () {
+
+    const update = this.getUpdate() as any;
+
+    const restrictedFields = ['isDeleted'];
+
+    for (const field of restrictedFields) {
+
+        if (
+            update?.[field] !== undefined ||
+            update?.$set?.[field] !== undefined
+        ) {
+            throw new Error(`${field} field cannot be updated`);
+        }
+    }
+});
 
 //post hook for save method, this will run after saving data to the database, we can use this to perform any necessary operations or actions after the data has been saved. In this case, it simply logs the document that was saved and a message indicating that the hook has completed.
 userSchema.post('save', function (doc) {
@@ -65,13 +81,13 @@ userSchema.post('save', function (doc) {
 // find middleware/hooks
 userSchema.pre('find', function () {
     // This middleware will run before any find operation (find, findOne, findById, etc.) is executed. It modifies the query to exclude documents where the isDeleted field is set to true, effectively implementing a soft delete mechanism. This means that when you query for users, you will only get those that are not marked as deleted.
-    this.find({ isDeleted: { $ne: true } });
+    // this.find({ isDeleted: { $ne: true } });
 });
 
 // findOne middleware/hooks
 userSchema.pre('findOne', function () {
     // Similar to the pre 'find' middleware, this will run before any findOne operation is executed and will modify the query to exclude documents where isDeleted is true, ensuring that soft-deleted users are not returned in findOne queries.
-    this.find({ isDeleted: { $ne: true } });
+    // this.find({ isDeleted: { $ne: true } });
 });
 
 // Create the User model using the schema

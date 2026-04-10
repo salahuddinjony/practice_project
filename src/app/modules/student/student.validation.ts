@@ -91,7 +91,11 @@ export const studentValidationSchema = z.object({
 
 // For update, all fields are optional
 const updateStudentValidationSchema = z.object({
-    student: studentValidationSchema.partial()
+    student: studentValidationSchema.partial().extend({
+        name: userNameValidationSchema.partial().optional(),
+        guardian: guardianValidationSchema.partial().optional(),
+        localGuardian: localGuardianValidationSchema.partial().optional(),
+    })
 });
 export const studentValidation = {
     studentValidationSchema,

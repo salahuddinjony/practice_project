@@ -3,7 +3,7 @@ import { Student } from '../student/student.interface.js'
 import { StudentModel } from '../student/student.model.js'
 import { User } from './user.interface.js'
 import { UserModel } from './user.model.js'
-import { UpdateQuery } from 'mongoose'
+import mongoose, { UpdateQuery } from 'mongoose'
 import AppError from '../../errors/AppError.js'
 import { UserUtils } from './user.utils.js'
 
@@ -19,61 +19,180 @@ const createStudentIntoDB = async (password: string, StudentData: Student, next:
         next(new AppError('Failed to generate student ID', 500))
         return
     }
+    // Use a session to ensure that both user and student creation are atomic operations. If either operation fails, the transaction will be rolled back, preventing partial data from being saved to the database.
+    const session = await mongoose.startSession();
+    try {
+        // Start a transaction to ensure atomicity of user and student creation. This means that if any part of the process fails (either creating the user or the student), the entire transaction will be rolled back, ensuring data integrity and preventing partial records from being saved to the database.
+        session.startTransaction();
 
+        // Keep user and student creation atomic to avoid partial records.
+        const [createNewUser] = await UserModel.create([userData], { session })
 
-    // Create a new user document in the database with the provided password and role
-    const createNewUser = await UserModel.create(userData) // Create a new user document in the database with the provided password and role
+        StudentData.id = createNewUser!.id
+        StudentData.user = createNewUser!._id
+        // Create the student document in the database using the StudentModel, passing in the student data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and student records are created successfully or rolled back together in case of any errors.
+        const [createNewStudent] = await StudentModel.create([StudentData], { session })
 
-    // After creating the user, we can proceed to create the student document and associate it with the created user
-    if (Object.keys(createNewUser.toObject()).length) { // Check if the created user object has any keys, which indicates that the user was successfully created
-
-        StudentData.id = createNewUser.id // Assuming the student's ID is the same as the user's ID, we set the student's ID to the created user's ID
-        StudentData.user = createNewUser._id // We also set the userId field in the student data to the ObjectId of the created user document, establishing a reference between the student and the user;
-        const createNewStudent = await StudentModel.create(StudentData) // Create a new student document in the database with the provided student data
-        return createNewStudent // Return the created student document
+        await session.commitTransaction();
+        return createNewStudent
+    } catch (error) {
+        await session.abortTransaction();
+        throw new AppError('Failed to create student user', 500)
+    } finally {
+        await session.endSession();
     }
 
 }
 // Service function to get all users from the database
 const getAllUsersFromDB = async () => {
     // Simulating fetching all users from the database
-    const result = await UserModel.find()
+    const result = await UserModel.find({ isDeleted: false })
     return result
 }
+
 // Service function to get a user by ID from the database
 const getUserByIdFromDB = async (id: string) => {
     // Simulating fetching a user by ID from the database
-    const result = await UserModel.findById(id)
+    const result = await UserModel.findById({ _id: id, isDeleted: false })
     return result
 }
+
+
 // Service function to update user info in the database
 const updateUserInfoInDB = async (id: string, updatedData: UpdateQuery<User>) => {
-    //before updating check its deleted or not if not then update it and also check if the updated admission semester reference is valid or not
-    const existingUser = await UserModel.findOne({ _id: id, isDeleted: false });
-    if (!existingUser) {
-        return null; // No user found with the specified ID or it is already deleted
+
+    const updatedUser = await UserModel.findOneAndUpdate(
+        { _id: id, isDeleted: false },
+        updatedData,
+        {
+            returnDocument: 'after', // This option ensures that the updated document is returned after the update operation is performed, allowing us to get the latest state of the user after the update.
+        }
+    );
+
+    if (!updatedUser) {
+        return null;
     }
-    const updatedUser = await UserModel.findByIdAndUpdate(id, updatedData, {
-        returnDocument: 'after',
-        runValidators: true,
-    }) // This option ensures that the updated document is returned after the update operation is completed
-    return updatedUser
-}
+
+    return updatedUser;
+};
 
 // delete user from database
 const deleteUserFromDB = async (id: string) => {
-    const deletedUser = await UserModel.findByIdAndUpdate({ _id: id, isDeleted: false }, { isDeleted: true }, { returnDocument: 'after' })
-    if (!deletedUser) {
-        return null; // No user found with the specified ID or it is already deleted} 
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        const deletedUser = await UserModel.findOneAndUpdate(
+            { _id: id, isDeleted: false },
+            { isDeleted: true },
+            { returnDocument: 'after', session }
+        )
+
+        if (!deletedUser) {
+            await session.abortTransaction();
+            return null
+        }
+
+        // Keep user and related student soft-delete in the same transaction.
+        await StudentModel.findOneAndUpdate(
+            { user: deletedUser._id, isDeleted: false },
+            { isDeleted: true },
+            { session }
+        )
+
+        await session.commitTransaction();
+        return deletedUser
+    } catch (error) {
+        await session.abortTransaction();
+        throw new AppError('Failed to delete user', 500)
+    } finally {
+        await session.endSession();
     }
-    // Also mark the associated student record as deleted by setting the isDeleted field to true, ensuring that both the user and the associated student record are marked as deleted in the database.
-    await StudentModel.findOneAndUpdate({ user: deletedUser._id }, { isDeleted: true }) // This will find the student document associated with the deleted user and mark it as deleted by setting the isDeleted field to true, ensuring that both the user and the associated student record are marked as deleted in the database.
-    return deletedUser // This will return the deleted user document if it was found and deleted, or null if no document with the specified ID was found
 }
+
+// Get all deleted students from the database
+const getAllDeletedUsersFromDB = async () => {
+    const deletedUsers = await UserModel.find({ isDeleted: true }).select('+isDeleted')
+    if (deletedUsers.length === 0) {
+        return {
+            count: 0,
+            users: [],
+            message: 'There are no deleted users'
+        }
+    }
+    return {
+        count: deletedUsers.length,
+        message: 'Deleted users retrieved successfully',
+        users: deletedUsers
+
+    }
+}
+
+// Restore all deleted users from the database
+const restoreDeletedUsersInDB = async () => {
+    // Set up a session for transaction management
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        // 1. Get deleted users
+        const deletedUsers = await UserModel.find(
+            { isDeleted: true },
+            { _id: 1 }
+        ).session(session);
+
+        const userIds = deletedUsers.map(user => user._id);
+
+        // If there are no deleted users, we can abort the transaction and return early
+        if (userIds.length === 0) {
+            await session.abortTransaction();
+            return {
+                count: 0,
+                users: [],
+                message: 'There are no deleted users to restore'
+            };
+        }
+
+        // 2. Restore users
+        const restoredUsers = await UserModel.updateMany(
+            { _id: { $in: userIds } },
+            { isDeleted: false },
+            { session }
+        );
+
+        // 3. Restore ONLY related students
+        await StudentModel.updateMany(
+            { user: { $in: userIds }, isDeleted: true },
+            { isDeleted: false },
+            { session }
+        );
+        // 4. Find current restored users to return in response
+        const restoredUserDocs = await UserModel.find({ _id: { $in: userIds } }).session(session);
+
+        // 5. Commit FIRST, then return
+        await session.commitTransaction();
+
+        return {
+            count: restoredUsers.modifiedCount,
+            message: `${restoredUsers.modifiedCount} user(s) restored successfully`,
+            users: restoredUserDocs
+        };
+
+    } catch (error) {
+        await session.abortTransaction();
+        throw new AppError('Failed to restore deleted users', 500);
+    } finally {
+        await session.endSession();
+    }
+};
 export const UserService = {
     createStudentIntoDB,
     getAllUsersFromDB,
     getUserByIdFromDB,
     updateUserInfoInDB,
-    deleteUserFromDB
+    deleteUserFromDB,
+    getAllDeletedUsersFromDB,
+    restoreDeletedUsersInDB
+
 }

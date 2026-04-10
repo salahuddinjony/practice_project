@@ -3,6 +3,8 @@ import { Student } from "./student.interface.js"
 import { StudentModel } from "./student.model.js"
 import { UserModel } from "../user/user.model.js"
 import { AcademicSemesterModel } from "../academicSemester/academicSemester.model.js"
+import mongoose from "mongoose"
+import { object } from "joi"
 
 
 
@@ -67,107 +69,179 @@ const getStudentByIdFromDB = async (id: string) => {
 //     return result[0] // Assuming the aggregation will return an array, we return the first element which should be the student document matching the ID 
 // }
 //update info 
-const updateStudentInfoInDB = async (id: string, updatedData: Partial<Omit<Student, 'id' & 'email'>>) => { // here partial means the updatedData can have any subset of the Student properties, making it flexible for updates
+const updateStudentInfoInDB = async (id: string, updatedData: Partial<Omit<Student, 'id' & 'email' & 'user' & 'isDeleted'>>) => { // here partial means the updatedData can have any subset of the Student properties, making it flexible for updates
     //before updating check its deleted or not if not then update it and also check if the updated admission semester reference is valid or not
     const existingStudent = await StudentModel.findOne({ _id: id, isDeleted: false });
     if (!existingStudent) {
         return null; // No student found with the specified ID or it is already deleted
     }
-    const updatedStudent = await StudentModel.findByIdAndUpdate(id, updatedData, { returnDocument: 'after' }) // This option ensures that the updated document is returned after the update operation is completed
+    // destructure the updatedData to separate the name, guardian, and localGuardian fields from the other fields, allowing us to handle them separately during the update process, especially since they may require special handling due to their nested structure in the database.
+    const { name, guardian, localGuardian, ...otherData } = updatedData;
+
+    // This code is responsible for preparing the updated student data for the update operation. It takes the name, guardian, and localGuardian fields from the updatedData and processes them separately to ensure that only the provided fields are updated in the database. The otherData variable contains the remaining fields that can be directly updated without any special handling.
+    const updatedStudentData: Record<string, any> = { ...otherData };
+
+    // If the name field is provided in the updatedData, we iterate through its properties (firstName, middleName, lastName) and add them to the updatedStudentData object with the appropriate dot notation (e.g., 'name.firstName') to ensure that only the specified name fields are updated in the database.
+    if (name && Object.keys(name).length > 0) {
+        for (const [key, value] of Object.entries(name)) {
+            if (value) {
+                updatedStudentData[`name.${key}`] = value;
+            }
+        }
+    }
+    // Similar to the name field, if the guardian field is provided in the updatedData, we iterate through its properties (fatherName, fatherOccupation, etc.) and add them to the updatedStudentData object with the appropriate dot notation (e.g., 'guardian.fatherName') to ensure that only the specified guardian fields are updated in the database.
+    if (guardian && Object.keys(guardian).length > 0) {
+        for (const [key, value] of Object.entries(guardian)) {
+            if (value) {
+                updatedStudentData[`guardian.${key}`] = value;
+            }
+        }
+    }
+    // Similar to the name and guardian fields, if the localGuardian field is provided in the updatedData, we iterate through its properties (name, occupation, etc.) and add them to the updatedStudentData object with the appropriate dot notation (e.g., 'localGuardian.name') to ensure that only the specified local guardian fields are updated in the database.
+    if (localGuardian && Object.keys(localGuardian).length > 0) {
+        for (const [key, value] of Object.entries(localGuardian)) {
+            if (value) {
+                updatedStudentData[`localGuardian.${key}`] = value;
+            }
+        }
+    }
+    const updatedStudent = await StudentModel.findByIdAndUpdate(id, updatedStudentData, { returnDocument: 'after' }) // This option ensures that the updated document is returned after the update operation is completed
     return updatedStudent
 }
 
 // delete student from database
 const deleteStudentFromDB = async (id: string) => {
 
-    // Update only if not already deleted
-    const deletedStudent = await StudentModel.findOneAndUpdate(
-        { _id: id, isDeleted: false }, // Ensure we only delete if the student is not already marked as deleted
-        { isDeleted: true },
-        { returnDocument: 'after' }
-    );
+    const session = await mongoose.startSession();
 
-    // Not found or already deleted
-    if (!deletedStudent) {
-        return null;
+    try {
+        session.startTransaction();
+
+        const deletedStudent = await StudentModel.findOneAndUpdate(
+            { _id: id, isDeleted: false },
+            { isDeleted: true },
+            {
+                returnDocument: 'after',
+                session
+            }
+        );
+
+        if (!deletedStudent) {
+            await session.abortTransaction();
+            return null;
+        }
+
+        await UserModel.findByIdAndUpdate(
+            deletedStudent.user,
+            { isDeleted: true },
+            { session }
+        );
+
+        await session.commitTransaction();
+        return deletedStudent;
+
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+
+    } finally {
+        await session.endSession();
     }
-
-    // Soft delete related user also by setting isDeleted to true
-    await UserModel.findByIdAndUpdate(
-        deletedStudent.user,
-        { isDeleted: true }
-    );
-
-    return deletedStudent;
 };
 
 // Restore all deleted students from the database if admissionSemester is restored
 const restoreDeletedStudentsInDB = async () => {
+    // start a session for transaction management to ensure that all operations related to restoring deleted students are executed atomically, meaning that either all operations succeed or none of them are applied, which helps maintain data integrity in case of any errors during the process.
+    const session = await mongoose.startSession();
 
-    // 1. Get all deleted students with required references
-    const deletedStudents = await StudentModel.find({ isDeleted: true })
-        .populate({ path: 'user', select: 'isDeleted' })
-        .populate({ path: 'admissionSemester', select: 'isDeleted' })
-        .populate({
-            path: 'academicDept',
-            select: 'isDeleted academicFaculty', // We need to check if the department is deleted and also get the academic faculty reference to check if it is deleted or not
-            populate: {
-                path: 'academicFaculty',
-                select: 'isDeleted'
-            }
+    try {
+        // Start the transaction to ensure that all operations related to restoring deleted students are executed atomically, meaning that either all operations succeed or none of them are applied, which helps maintain data integrity in case of any errors during the process.
+        session.startTransaction();
+        // Fetch all deleted students from the database, along with their related admissionSemester and academicDept (including academicFaculty) data, to check if they can be restored based on the status of their related references.
+        const deletedStudents = await StudentModel.find({ isDeleted: true })
+            .populate({
+                path: 'admissionSemester',
+                select: '+isDeleted'
+            })
+            .populate({
+                path: 'academicDept',
+                select: '+isDeleted academicFaculty',
+                populate: {
+                    path: 'academicFaculty',
+                    select: '+isDeleted'
+                }
+            });
+
+        if (deletedStudents.length === 0) {
+            await session.abortTransaction();
+            return {
+                count: 0,
+                students: [],
+                message: 'There are no deleted students to restore'
+            };
+        }
+        // Filter the deleted students to find those that can be restored based on the status of their related admissionSemester and academicDept (including academicFaculty) references. Only students whose related references are not deleted can be restored.
+        const validStudents = deletedStudents.filter(student => {
+            const semester = student.admissionSemester as any;
+            const dept = student.academicDept as any;
+
+            return (
+                semester && !semester.isDeleted &&
+                dept && !dept.isDeleted &&
+                dept.academicFaculty && !dept.academicFaculty.isDeleted
+            );
         });
 
-    if (deletedStudents.length === 0) {
-        return {
-            count: 0,
-            students: [],
-            message: 'There are no deleted students to restore'
-        };
-    }
+        if (validStudents.length === 0) {
+            await session.abortTransaction();
+            return {
+                count: 0,
+                students: [],
+                message: 'No students can be restored due to deleted references'
+            };
+        }
+        // Extract the user IDs and student IDs of the valid students that can be restored, which will be used to update their isDeleted status in the database.
+        const validUserIds = validStudents
+            .map(s => s.user)
+            .filter(Boolean);
 
-    // 2. Filter valid students (whose all references are NOT deleted)
-    const validStudents = deletedStudents.filter(student => {
-        const user = student.user as any;
-        const semester = student.admissionSemester as any;
-        const dept = student.academicDept as any;
+        const validStudentIds = validStudents.map(s => s._id);
 
-        return (
-            user && !user.isDeleted &&
-            semester && !semester.isDeleted &&
-            dept && !dept.isDeleted &&
-            dept.academicFaculty && !dept.academicFaculty.isDeleted
+        if (validUserIds.length > 0) {
+            await UserModel.updateMany(
+                { _id: { $in: validUserIds } },
+                { isDeleted: false },
+                { session }
+            );
+        }
+        // Update the isDeleted status of the valid students to false, effectively restoring them in the database, and then fetch the restored student documents to return as part of the response.
+        await StudentModel.updateMany(
+            { _id: { $in: validStudentIds } },
+            { isDeleted: false },
+            { session }
         );
-    });
+        // Fetch the restored student documents to return in the response, including their name, email, and admissionSemester information.
+        const result = await StudentModel.find({
+            _id: { $in: validStudentIds }
+        })
+            .select('name email admissionSemester')
+            .session(session);
 
-    // 3. If no valid students
-    if (validStudents.length === 0) {
+        await session.commitTransaction();
+
         return {
-            count: 0,
-            students: [],
-            message:
-                'No students can be restored because their associated user, semester, department, or faculty is still deleted'
+            count: result.length,
+            students: result,
+            message: 'Deleted students restored successfully'
         };
+
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+
+    } finally {
+        await session.endSession();
     }
-
-    // 4. Extract valid student IDs
-    const validStudentIds = validStudents.map(s => s._id);
-
-    // 5. Restore only valid students
-    await StudentModel.updateMany(
-        { _id: { $in: validStudentIds } },
-        { isDeleted: false }
-    );
-
-    // 6. Return restored students
-    const result = await StudentModel.find({
-        _id: { $in: validStudentIds }
-    }).select('name email admissionSemester');
-
-    return {
-        count: result.length,
-        students: result,
-        message: 'Deleted students restored successfully'
-    };
 };
 export const StudentService = {
     // createStudentIntoDB,

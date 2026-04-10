@@ -63,4 +63,20 @@ AcademicSemesterSchema.pre('save', async function () {
         throw new Error('Academic semester with the same name and year already exists');
     }
 });
+AcademicSemesterSchema.pre('findOneAndUpdate', function () {
+
+    const update = this.getUpdate() as any;
+
+    const restrictedFields = ['isDeleted'];
+
+    for (const field of restrictedFields) {
+
+        if (
+            update?.[field] !== undefined ||
+            update?.$set?.[field] !== undefined
+        ) {
+            throw new Error(`${field} field cannot be updated`);
+        }
+    }
+});
 export const AcademicSemesterModel = model<AcademicSemester>('AcademicSemester', AcademicSemesterSchema);

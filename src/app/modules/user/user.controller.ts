@@ -96,11 +96,60 @@ const deleteUser = catchAsync(async (req: Request, res: Response, next: NextFunc
     }
 
 })
+// get all deleted users-GET
+const getAllDeletedUsers = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await UserService.getAllDeletedUsersFromDB()
+    if (result.count!=0) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: result.message,
+            data: result
+        })
+    } 
+    else if(result.count === 0) {
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: result.message
+           
+        })
+    }else {
+        next(new AppError('Failed to retrieve deleted users', 404))
+    }
+})
+
+// Restore all deleted users-POST
+const restoreDeletedUsers = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await UserService.restoreDeletedUsersInDB()
+    if (result.count!=0) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: 'Deleted users restored successfully',
+            data: result.message
+        })
+    } 
+    else if (result.count === 0) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message:result.message,
+           
+        })
+    } 
+    else {
+        next(new AppError('Failed to restore deleted users', 404))
+    }
+})
 
 export const UserController = {
     createStudent,
     getAllUsers,
     getUserById,
     updateUserInfo,
-    deleteUser
+    deleteUser,
+    getAllDeletedUsers,
+    restoreDeletedUsers
+
 }

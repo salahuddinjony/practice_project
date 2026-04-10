@@ -189,13 +189,21 @@ studentSchema.post('save', function (doc, next) {
 
 //for update hooks, we can use pre and post hooks for findOneAndUpdate method, this will run before and after updating data in the database, we can use this to perform any necessary operations or validations before and after the data is updated. In this case, it simply logs the document being updated and a message indicating that the hook is running.
 studentSchema.pre('findOneAndUpdate', function () {
-    // console.log(this, 'Hook before updating data')
-    const update = this.getUpdate(); // Get the update object that contains the fields being updated. This allows us to access the fields that are being modified in the update operation.
-    if (update && ((update as any).email !== undefined || (update as any).$set?.email !== undefined)) { // Check if the email field is being updated
-        throw new Error('Email field cannot be updated')
-    }
-})
 
+    const update = this.getUpdate() as any;
+
+    const restrictedFields = ['email', 'isDeleted'];
+
+    for (const field of restrictedFields) {
+
+        if (
+            update?.[field] !== undefined ||
+            update?.$set?.[field] !== undefined
+        ) {
+            throw new Error(`${field} field cannot be updated`);
+        }
+    }
+});
 
 // post hook for findOneAndUpdate method, this will run after updating data in the database, we can use this to perform any necessary operations or actions after the data has been updated. In this case, it simply logs the document that was updated and a message indicating that the hook has completed.
 studentSchema.post('findOneAndUpdate', function () {

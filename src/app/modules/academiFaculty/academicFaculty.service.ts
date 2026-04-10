@@ -1,8 +1,11 @@
 
+import { ca } from "zod/locales";
 import AcademicDeptModel from "../academicDept/academicDept.model.js";
 import { AcademicFaculty } from "./academicFaculty.interface.js"
 import AcademicFacultyModel from "./academicFaculty.model.js"
-import { model } from "mongoose"
+import mongoose, { model } from "mongoose"
+import AppError from "../../errors/AppError.js";
+import { StudentModel } from "../student/student.model.js";
 
 // Service function to create a new academic faculty
 const createAcademicFacultyIntoDB = async (facultyData: AcademicFaculty) => {
@@ -36,58 +39,101 @@ const updateAcademicFacultyInfoInDB = async (id: string, updatedData: Partial<Om
 // delete faculty from database
 const deleteAcademicFacultyFromDB = async (id: string) => {
 
-    // 1. Delete faculty
-    const deletedFaculty = await AcademicFacultyModel.findOneAndUpdate(
-        { _id: id, isDeleted: false },
-        { isDeleted: true },
-        { new: true }
-    );
+    const session = await mongoose.startSession();
 
-    if (!deletedFaculty) {
-        return null;
+    try {
+        session.startTransaction();
+
+        const deletedFaculty = await AcademicFacultyModel.findOneAndUpdate(
+            { _id: id, isDeleted: false },
+            { isDeleted: true },
+            { returnDocument: 'after', session }
+        );
+
+        if (!deletedFaculty) {
+            await session.abortTransaction();
+            return null;
+        }
+
+        const departments = await AcademicDeptModel.find(
+            { academicFaculty: id, isDeleted: false }
+        ).select('_id');
+
+        const departmentIds = departments.map(dept => dept._id);
+
+        if (departmentIds.length > 0) {
+
+            await AcademicDeptModel.updateMany(
+                { _id: { $in: departmentIds } },
+                { isDeleted: true },
+                { session }
+            );
+
+            await StudentModel.updateMany(
+                {
+                    academicDept: { $in: departmentIds },
+                    isDeleted: false
+                },
+                { isDeleted: true },
+                { session }
+            );
+        }
+
+        await session.commitTransaction();
+        return deletedFaculty;
+
+    } catch (error) {
+
+        await session.abortTransaction();
+        throw new AppError('Failed to delete academic faculty', 500);
+
+    } finally {
+        await session.endSession();
     }
-
-    // 2. Get department IDs FIRST (before deleting them)
-    const departments = await AcademicDeptModel.find({
-        academicFaculty: id,
-        isDeleted: false
-    }).select('_id');
-
-    const departmentIds = departments.map(dept => dept._id);
-
-    // 3. Delete departments
-    await AcademicDeptModel.updateMany(
-        { _id: { $in: departmentIds } },
-        { isDeleted: true }
-    );
-
-    // 4. Delete students under those departments (no need to find first)
-    await model('Student').updateMany(
-        {
-            academicDept: { $in: departmentIds },
-            isDeleted: false
-        },
-        { isDeleted: true }
-    );
-
-    return deletedFaculty;
 };
 
 // Restore all deleted faculties from the database
 const restoreDeletedAcademicFacultiesInDB = async () => {
-    //1st check if there are any deleted faculties, if there are then restore them by setting isDeleted to false
-    const deletedFaculties = await AcademicFacultyModel.find({ isDeleted: true }).select('_id'); // We only need the _id field of the deleted faculties to restore them, so we can use select to optimize the query and reduce the amount of data retrieved from the database
-    if (deletedFaculties.length === 0) {
-        return null; // No deleted faculties found to restore
+
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        const deletedFaculties = await AcademicFacultyModel.find(
+            { isDeleted: true }
+        ).select('_id');
+
+        if (deletedFaculties.length === 0) {
+            await session.abortTransaction();
+            return null;
+        }
+
+        const facultyIds = deletedFaculties.map(f => f._id);
+
+        await AcademicFacultyModel.updateMany(
+            { _id: { $in: facultyIds } },
+            { isDeleted: false },
+            { session }
+        );
+
+        await session.commitTransaction();
+
+        const restoredFaculties = await AcademicFacultyModel.find({
+            _id: { $in: facultyIds }
+        });
+
+        return restoredFaculties;
+
+    } catch (error) {
+
+        await session.abortTransaction();
+        throw new AppError('Failed to restore deleted academic faculties', 500);
+
+    } finally {
+        await session.endSession();
     }
-      await AcademicFacultyModel.updateMany(
-        { isDeleted: true },  // Filter to find all documents that are currently marked as deleted
-        { isDeleted: false } // Update operation to set isDeleted to false, effectively restoring the deleted departments
-    );
-    // get the restored faculties to return in the response
-    const restoredFaculties = await AcademicFacultyModel.find({ isDeleted: false, _id: { $in: deletedFaculties } });
-    return restoredFaculties; // This will return the result of the update operation, which includes information about how many documents were matched and modified during the restore process
-} 
+};
 
 //get all deleted faculties from database
 const getAllDeletedAcademicFacultiesFromDB = async () => {

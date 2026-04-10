@@ -14,6 +14,22 @@ const academicFaultySchema = new Schema<AcademicFaculty>({
 }, {
     timestamps: true
 })
+academicFaultySchema.pre('findOneAndUpdate', function () {
+
+    const update = this.getUpdate() as any;
+
+    const restrictedFields = ['isDeleted'];
+
+    for (const field of restrictedFields) {
+
+        if (
+            update?.[field] !== undefined ||
+            update?.$set?.[field] !== undefined
+        ) {
+            throw new Error(`${field} field cannot be updated`);
+        }
+    }
+});
 
 const AcademicFacultyModel = model<AcademicFaculty>('AcademicFaculty', academicFaultySchema)
 

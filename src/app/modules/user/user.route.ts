@@ -32,5 +32,11 @@ router.patch(
  
 // Route for deleting a user
 router.delete('/delete-user/:id', UserController.deleteUser)
+
+// Route for getting all deleted users
+router.get('/get-all-deleted-users', UserController.getAllDeletedUsers)
+
+// Route for restoring deleted users
+router.patch('/restore-deleted-users', UserController.restoreDeletedUsers)
  
 export const UserRoute = router

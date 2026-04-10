@@ -1,7 +1,9 @@
 import { AcademicSemester } from "./academicSemester.interface.js";
 import { AcademicSemesterModel } from "./academicSemester.model.js";
-import { model } from "mongoose";
+import mongoose, { model } from "mongoose";
 import { isCorrectSemester as correctSemesterCheker } from "./utils/academicSemester.mapper.js";
+import AppError from "../../errors/AppError.js";
+import { StudentModel } from "../student/student.model.js";
 
 // Service function to create a new academic semester
 const createSemesterIntoDB = async (semesterData: AcademicSemester) => {
@@ -41,16 +43,44 @@ const updateSemesterInfoInDB = async (id: string, updatedData: Partial<Omit<Acad
 
 // delete semester from database
 const deleteSemesterFromDB = async (id: string) => {
-    //check if the semester is already deleted, if not then delete it and also delete all students associated with this semester by marking them as deleted
-    const deletedSemester = await AcademicSemesterModel.findByIdAndUpdate({ _id: id, isDeleted: false }, { isDeleted: true }, { returnDocument: 'after' });
-    // Also delete all students associated with this semester by marking them as deleted
-    if (!deletedSemester) {
-        return null; // No semester found with the specified ID or it is already deleted
-    }
-    await model('Student').updateMany({ admissionSemester: id }, { isDeleted: true })
 
-    return deletedSemester; // This will return the deleted semester document if it was found and deleted, or null if no document with the specified ID was found
-}
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        const deletedSemester = await AcademicSemesterModel.findOneAndUpdate(
+            { _id: id, isDeleted: false },
+            { isDeleted: true },
+            { new: true, session }
+        );
+
+        if (!deletedSemester) {
+            await session.abortTransaction();
+            return null;
+        }
+
+        await StudentModel.updateMany(
+            {
+                admissionSemester: id,
+                isDeleted: false
+            },
+            { isDeleted: true },
+            { session }
+        );
+
+        await session.commitTransaction();
+
+        return deletedSemester;
+
+    } catch (error) {
+        await session.abortTransaction();
+        throw new AppError('Failed to delete semester', 500);
+
+    } finally {
+        await session.endSession();
+    }
+};
 // Restore all deleted semesters from the database
 const restoreDeletedSemestersInDB = async () => {
     //1st check if there are any deleted semesters, if there are then restore them by setting isDeleted to false

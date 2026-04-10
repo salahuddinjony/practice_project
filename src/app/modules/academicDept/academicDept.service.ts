@@ -1,6 +1,9 @@
 
+import AppError from '../../errors/AppError.js';
+import { StudentModel } from '../student/student.model.js';
 import { AcademicDept } from './academicDept.interface.js';
 import AcademicDeptModel from './academicDept.model.js';
+import mongoose from 'mongoose';
 
 
 // Service function to create a new academic department
@@ -24,7 +27,7 @@ const getAcademicDeptByIdFromDB = async (id: string) => {
 // update department info
 const updateAcademicDeptInfoInDB = async (id: string, updatedData: Partial<Omit<AcademicDept, 'id'>>) => {
     //before updating check its deleted or not if not then update it and also check if the updated academic faculty reference is valid or not and also check if the name is unique within the same faculty
-     const existingDept = await AcademicDeptModel.findOne({ _id: id, isDeleted: false });
+    const existingDept = await AcademicDeptModel.findOne({ _id: id, isDeleted: false });
     if (!existingDept) {
         return null; // No department found with the specified ID or it is already deleted
     }
@@ -45,13 +48,45 @@ const getAllDeletedAcademicDeptsFromDB = async () => {
 
 // delete department from database
 const deleteAcademicDeptFromDB = async (id: string) => {
-    //check if the department is already deleted, if not then delete it and also delete all students associated with this department by marking them as deleted
-    const deletedAcademicDept = await AcademicDeptModel.findByIdAndUpdate({ _id: id, isDeleted: false }, { isDeleted: true }, { returnDocument: 'after' }).populate('academicFaculty');
-    if (!deletedAcademicDept) {
-        return null; // No department found with the specified ID or it is already deleted
+
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        const deletedAcademicDept = await AcademicDeptModel.findOneAndUpdate(
+            { _id: id, isDeleted: false },
+            { isDeleted: true },
+            { new: true, session }
+        );
+
+        if (!deletedAcademicDept) {
+            await session.abortTransaction();
+            return null;
+        }
+
+        await StudentModel.updateMany(
+            {
+                academicDept: id,
+                isDeleted: false
+            },
+            { isDeleted: true },
+            { session }
+        );
+
+        await session.commitTransaction();
+
+        return deletedAcademicDept;
+
+    } catch (error) {
+
+        await session.abortTransaction();
+        throw new AppError('Failed to delete academic department', 500);
+
+    } finally {
+        await session.endSession();
     }
-    return deletedAcademicDept; // This will return the deleted department document if it was found and deleted, or null if no document with the specified ID was found
-}
+};
 
 // Restore all deleted departments from the database
 const restoreDeletedAcademicDeptsInDB = async () => {
@@ -65,7 +100,7 @@ const restoreDeletedAcademicDeptsInDB = async () => {
         { isDeleted: false } // Update operation to set isDeleted to false, effectively restoring the deleted departments
     );
     //then show latest restored departments by finding them again with isDeleted false and also sort them by updatedAt in descending order to show the latest restored departments first    
-    const latestRestoredDepts = await AcademicDeptModel.find({ isDeleted: false, _id: { $in: deletedDepts}}).select('name academicFaculty updatedAt')
+    const latestRestoredDepts = await AcademicDeptModel.find({ isDeleted: false, _id: { $in: deletedDepts } }).select('name academicFaculty updatedAt')
     return latestRestoredDepts; // This will return the result of the update operation, which includes information about how many documents were modified
 }
 

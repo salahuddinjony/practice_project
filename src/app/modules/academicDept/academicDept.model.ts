@@ -54,8 +54,12 @@ academicDeptSchema.pre('save', async function (next) {
 // pre update hook to ensure that the academic faculty reference is valid before updating a department also check name is unique within the same faculty
 academicDeptSchema.pre('findOneAndUpdate', async function (next) {
     try {
-        const updateData = this.getUpdate();
-        const academicFacultyId = (updateData as any).academicFaculty;
+        const updateData = this.getUpdate() as any;
+        const academicFacultyId = updateData.academicFaculty;
+        //also check is there try to update isDeleted field or not, if yes then throw error because we don't want to allow updating isDeleted field from this hook, we will handle it in separate hook for delete and restore operations
+        if (updateData.isDeleted !== undefined) {
+            throw new Error('isDeleted field cannot be updated from this endpoint');
+        }
 
         if (academicFacultyId) { 
             // Check if faculty exists 
@@ -70,10 +74,10 @@ academicDeptSchema.pre('findOneAndUpdate', async function (next) {
             }
         }
         // Check name uniqueness within the same faculty if name or academicFaculty is being updated
-        if ((updateData as any).name && academicFacultyId) {
+        if (updateData.name && academicFacultyId) {
             //  Check duplicate (exclude self in case of update)
             const existingDept = await model('AcademicDept').exists({
-                name: (updateData as any).name,
+                name: updateData.name,
                 academicFaculty: academicFacultyId,
                 isDeleted: false,
                 _id: { $ne: this.getQuery()._id } 
