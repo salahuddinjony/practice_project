@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import { Course, prerequisiteCourse } from "./cources.interface.js";
+import { assignCourcesToFaculties, Course, prerequisiteCourse } from "./cources.interface.js";
 import { restrictUpdateFieldsChecker } from "../../utils/restrictedUpdateFiled.js";
 import { applyExcludeFields } from "../../utils/excludeFiledWhenCreateResponse.js";
 
@@ -37,6 +37,17 @@ const CourseSchema = new Schema<Course>({
 }
 );
 
+const assignCourcesToFacultiesSchema = new Schema<assignCourcesToFaculties>(
+  {
+    courseId: { type: Schema.Types.ObjectId, ref: "Course", required: true, unique: true },
+    faculties: { type: [Schema.Types.ObjectId], ref: "AcademicFaculty", required: true },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+  },
+);
+
 // Exclude fields when converting to JSON
 applyExcludeFields<Course>(CourseSchema, [
   "isDeleted",
@@ -46,3 +57,4 @@ applyExcludeFields<Course>(CourseSchema, [
 // restrictUpdateFieldsChecker(CourseSchema, undefined, ["isDeleted"]); // This will restrict updating the isDeleted and email fields in the Student schema for the specified update methods.
 
 export const CourseModel = model<Course>("Course", CourseSchema);
+export const AssignCourcesToFacultiesModel = model<assignCourcesToFaculties>("AssignCourcesToFaculties", assignCourcesToFacultiesSchema);

@@ -4,6 +4,7 @@ import { AcademicDept } from "./academicDept.interface.js";
 import AcademicDeptModel from "./academicDept.model.js";
 import mongoose from "mongoose";
 import { paginate, parseListQuery } from "../../builder/queryBuilder.js";
+import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
 import AcademicFacultyModel from "../academiFaculty/academicFaculty.model.js";
 
 // Service function to create a new academic department
@@ -69,7 +70,7 @@ const updateAcademicDeptInfoInDB = async (
   }
   const updatedAcademicDept = await AcademicDeptModel.findByIdAndUpdate(
     id,
-    updatedData,
+    normalizeMongoUpdatePayload(updatedData as Record<string, unknown>),
     { returnDocument: "after" },
   ).populate("academicFaculty");
   return updatedAcademicDept;

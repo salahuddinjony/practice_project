@@ -1,4 +1,5 @@
 import { paginate, parseListQuery } from "../../builder/queryBuilder.js";
+import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
 import { Admin } from "./admin.interface.js";
 import AdminModel from "./admin.model.js";
 
@@ -23,9 +24,13 @@ const getAdminByIdFromDB = async (id: string) => {
 };
 //update admin info in DB
 const updateAdminInDB = async (id: string, admin: Partial<Admin>) => {
-  const updatedAdmin = await AdminModel.findByIdAndUpdate(id, admin, {
-    returnDocument: "after",
-  });
+  const updatedAdmin = await AdminModel.findByIdAndUpdate(
+    id,
+    normalizeMongoUpdatePayload(admin as Record<string, unknown>),
+    {
+      returnDocument: "after",
+    },
+  );
   return updatedAdmin;
 };
 

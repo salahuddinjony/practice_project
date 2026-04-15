@@ -7,6 +7,7 @@ import mongoose, { UpdateQuery } from "mongoose";
 import AppError from "../../errors/handleAppError.js";
 import { UserUtils } from "./user.utils.js";
 import { paginate, parseListQuery } from "../../builder/queryBuilder.js";
+import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
 import { AcademicSemesterModel } from "../academicSemester/academicSemester.model.js";
 import AcademicDeptModel from "../academicDept/academicDept.model.js";
 import { startSession } from "mongoose";
@@ -58,7 +59,7 @@ const createStudentIntoDB = async (password: string, StudentData: Student) => {
       await session.abortTransaction();
       throw new AppError("Academic department is deleted", 400);
     }
- // Generate a unique student ID using the UserUtils.generatedStudentId function, which takes the admission semester ID and the session as parameters. This function will generate a unique student ID based on the admission semester and ensure that it is done within the same transaction to maintain data integrity.
+    // Generate a unique student ID using the UserUtils.generatedStudentId function, which takes the admission semester ID and the session as parameters. This function will generate a unique student ID based on the admission semester and ensure that it is done within the same transaction to maintain data integrity.
     userData.id = await UserUtils.generatedStudentId(
       admissionSemesterId,
       session,
@@ -108,9 +109,15 @@ const updateUserInfoInDB = async (
   id: string,
   updatedData: UpdateQuery<User>,
 ) => {
+  const payload =
+    typeof updatedData === "object" &&
+    updatedData !== null &&
+    !Array.isArray(updatedData)
+      ? normalizeMongoUpdatePayload(updatedData as Record<string, unknown>)
+      : updatedData;
   const updatedUser = await UserModel.findOneAndUpdate(
     { _id: id, isDeleted: false },
-    updatedData,
+    payload,
     {
       returnDocument: "after", // This option ensures that the updated document is returned after the update operation is performed, allowing us to get the latest state of the user after the update.
     },

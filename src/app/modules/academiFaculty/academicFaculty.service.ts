@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import AppError from "../../errors/handleAppError.js";
 import { StudentModel } from "../student/student.model.js";
 import { paginate, parseListQuery } from "../../builder/queryBuilder.js";
+import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
 import { CounterService } from "../counter/counter.service.js";
 
 // Service function to create a new academic faculty
@@ -84,7 +85,7 @@ const updateAcademicFacultyInfoInDB = async (
   }
   const updatedFaculty = await AcademicFacultyModel.findByIdAndUpdate(
     id,
-    updatedData,
+    normalizeMongoUpdatePayload(updatedData as Record<string, unknown>),
     { returnDocument: "after" },
   );
   return updatedFaculty;

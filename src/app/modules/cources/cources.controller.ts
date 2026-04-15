@@ -117,10 +117,104 @@ const deleteCourseById = catchAsync(
   },
 );
 
+//assign cources to faculties
+const assignCourcesToFaculties = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const courseId = checkCommonValidation.validateId(
+      req.params.courseId as string,
+      next,
+    );
+    const facultyData = req.body;
+    const result = await CourseService.assignCourcesToFacultiesInDB(
+      courseId as string,
+      facultyData,
+    );
+    if (result) {
+      sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "Courses assigned to faculties successfully",
+        data: result,
+      });
+    } else {
+      next(new AppError("Failed to assign courses to faculties", 404));
+    }
+  },
+);
+
+// unassign cources from faculties
+const unassignCourcesFromFaculties = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const courseId = checkCommonValidation.validateId(
+      req.params.courseId as string,
+      next,
+    );
+    const facultyIds = Array.isArray(req.body) ? req.body : req.body.faculties;
+    const result = await CourseService.unassignCourcesFromFacultiesInDB(
+      courseId as string,
+      facultyIds,
+    );
+    if (result) {
+      sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "Courses unassigned from faculties successfully",
+        data: result,
+      });
+    } else {
+      next(new AppError("Failed to unassign courses from faculties", 404));
+    }
+  },
+);
+
+// get all assigned courses with faculties
+const getAllCoursesAssignedToFaculty = catchAsync(
+  async (_req: Request, res: Response, next: NextFunction) => {
+    const result = await CourseService.getAllCoursesAssignedToFacultiesInDB();
+    if (result) {
+      sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "All assigned courses retrieved successfully",
+        data: result,
+      });
+    } else {
+      next(new AppError("Failed to get all assigned courses", 404));
+    }
+  },
+);
+
+// get single assigned course to a faculty
+const getSingleAssignedCourseToFaculty = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const facultyId = checkCommonValidation.validateId(
+      req.params.facultyId as string,
+      next,
+    );
+    const result = await CourseService.getSingleAssignedCourseToFacultyInDB(
+      facultyId as string,
+    );
+    if (result) {
+      sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "Courses assigned to faculty successfully",
+        data: result,
+      });
+    } else {
+      next(new AppError("No assigned course found for this faculty", 404));
+    }
+  },
+);
+
 export const CourseController = {
   createCource,
   getAllCources,
   getCourseById,
   updateCourseInfo,
   deleteCourseById,
+  assignCourcesToFaculties,
+  unassignCourcesFromFaculties,
+  getAllCoursesAssignedToFaculty,
+  getSingleAssignedCourseToFaculty,
 };

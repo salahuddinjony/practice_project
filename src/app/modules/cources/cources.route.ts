@@ -34,8 +34,29 @@ router.patch(
 //delete course
 router.delete("/delete-course/:id", CourseController.deleteCourseById);
 
-// restore deleted courses
-// router.patch('/restore-deleted-admins', AdminController.restoreDeletedAdmins)
+//assign cources in multiple faculties
+router.put(
+  "/:courseId/assign-to-faculties",
+  validation(courseValidation.assignCourcesToFacultiesValidationSchema),
+  CourseController.assignCourcesToFaculties,
+);
+// get all assigned courses to a faculty
+router.get(
+  "/get-all-courses-assigned-to-faculty",
+  CourseController.getAllCoursesAssignedToFaculty,
+);
 
-// Export the router to be used in the main app
+// Unassign courses from faculties
+router.put(
+  "/:courseId/unassign-from-faculties",
+  validation(courseValidation.unassignCourcesFromFacultiesValidationSchema),
+  CourseController.unassignCourcesFromFaculties,
+);
+
+// Get single assigned course to a faculty
+router.get(
+  "/:facultyId/assigned-course-to-faculty",
+  CourseController.getSingleAssignedCourseToFaculty,
+);
+
 export const CourseRoute = router;

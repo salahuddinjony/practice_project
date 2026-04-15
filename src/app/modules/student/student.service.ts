@@ -3,6 +3,7 @@ import { StudentModel } from "./student.model.js";
 import { UserModel } from "../user/user.model.js";
 import mongoose from "mongoose";
 import { paginate, parseListQuery } from "../../builder/queryBuilder.js";
+import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
 
 const studentListSearchableFields = [
   "name.firstName",
@@ -16,7 +17,7 @@ const studentListSearchableFields = [
 ] as const;
 
 // Get all student and search students
-export const getAllStudentsFromDB = async (query: Record<string, unknown>) => {
+const getAllStudentsFromDB = async (query: Record<string, unknown>) => {
   const parsed = parseListQuery(query, {
     searchableFields: [...studentListSearchableFields],
     baseFilter: { isDeleted: false },
@@ -83,36 +84,11 @@ const updateStudentInfoInDB = async (
   if (!existingStudent) {
     return null; // No student found with the specified ID or it is already deleted
   }
-  // destructure the updatedData to separate the name, guardian, and localGuardian fields from the other fields, allowing us to handle them separately during the update process, especially since they may require special handling due to their nested structure in the database.
-  const { name, guardian, localGuardian, ...otherData } = updatedData;
-
-  // This code is responsible for preparing the updated student data for the update operation. It takes the name, guardian, and localGuardian fields from the updatedData and processes them separately to ensure that only the provided fields are updated in the database. The otherData variable contains the remaining fields that can be directly updated without any special handling.
-  const updatedStudentData: Record<string, any> = { ...otherData };
-
-  // If the name field is provided in the updatedData, we iterate through its properties (firstName, middleName, lastName) and add them to the updatedStudentData object with the appropriate dot notation (e.g., 'name.firstName') to ensure that only the specified name fields are updated in the database.
-  if (name && Object.keys(name).length > 0) {
-    for (const [key, value] of Object.entries(name)) {
-      if (value) {
-        updatedStudentData[`name.${key}`] = value;
-      }
-    }
-  }
-  // Similar to the name field, if the guardian field is provided in the updatedData, we iterate through its properties (fatherName, fatherOccupation, etc.) and add them to the updatedStudentData object with the appropriate dot notation (e.g., 'guardian.fatherName') to ensure that only the specified guardian fields are updated in the database.
-  if (guardian && Object.keys(guardian).length > 0) {
-    for (const [key, value] of Object.entries(guardian)) {
-      if (value) {
-        updatedStudentData[`guardian.${key}`] = value;
-      }
-    }
-  }
-  // Similar to the name and guardian fields, if the localGuardian field is provided in the updatedData, we iterate through its properties (name, occupation, etc.) and add them to the updatedStudentData object with the appropriate dot notation (e.g., 'localGuardian.name') to ensure that only the specified local guardian fields are updated in the database.
-  if (localGuardian && Object.keys(localGuardian).length > 0) {
-    for (const [key, value] of Object.entries(localGuardian)) {
-      if (value) {
-        updatedStudentData[`localGuardian.${key}`] = value;
-      }
-    }
-  }
+  // Dot-notation partial update so nested objects (name, guardian, localGuardian) merge
+  // per-field instead of replacing the whole subdocument.
+  const updatedStudentData = normalizeMongoUpdatePayload(
+    updatedData as Record<string, unknown>,
+  );
   const updatedStudent = await StudentModel.findByIdAndUpdate(
     id,
     updatedStudentData,

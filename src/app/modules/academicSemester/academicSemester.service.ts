@@ -5,6 +5,7 @@ import { isCorrectSemester as correctSemesterCheker } from "./utils/academicSeme
 import AppError from "../../errors/handleAppError.js";
 import { StudentModel } from "../student/student.model.js";
 import { paginate, parseListQuery } from "../../builder/queryBuilder.js";
+import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
 
 // Service function to create a new academic semester
 const createSemesterIntoDB = async (semesterData: AcademicSemester) => {
@@ -50,7 +51,7 @@ const updateSemesterInfoInDB = async (
   }
   const updatedSemester = await AcademicSemesterModel.findByIdAndUpdate(
     id,
-    updatedData,
+    normalizeMongoUpdatePayload(updatedData as Record<string, unknown>),
     { returnDocument: "after" },
   );
   return updatedSemester;
