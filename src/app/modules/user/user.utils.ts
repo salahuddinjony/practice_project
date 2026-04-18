@@ -11,7 +11,6 @@ const generatedStudentId = async (
   const normalizedSemesterId = admissionSemesterId?.trim();
 
   if (!normalizedSemesterId || !Types.ObjectId.isValid(normalizedSemesterId)) {
-    await session?.abortTransaction();
     throw new AppError("Invalid admission semester id", 400);
   }
 
@@ -21,7 +20,6 @@ const generatedStudentId = async (
     isDeleted: false,
   }).session(session ?? null);
   if (!semesterData) {
-    await session?.abortTransaction();
     throw new AppError("Admission semester not found", 404);
   }
   const yearValue =
@@ -30,7 +28,6 @@ const generatedStudentId = async (
       : new Date(semesterData.year).getFullYear().toString();
 
   if (!yearValue || yearValue === "NaN") {
-    await session?.abortTransaction();
     throw new AppError("Invalid semester year", 500);
   }
 
@@ -42,7 +39,6 @@ const generatedStudentId = async (
     session,
   );
   if (!getCounterData) {
-    await session?.abortTransaction();
     throw new AppError("Failed to generate counter data", 500);
   }
   return `${counterId}${getCounterData.sequenceValue.toString().padStart(4, "0")}`; // Generate the student ID by combining the counter ID with a sequence value that is padded with leading zeros to ensure a consistent length for all student IDs, this will help to create a unique and standardized format for student IDs in the database.

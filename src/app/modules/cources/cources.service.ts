@@ -262,7 +262,7 @@ const unassignCourcesFromFacultiesInDB = async (
   return unassignedCources;
 };
 
-// get all assigned course-faculty mappings
+// get all assigned course-faculty mappings 
 const getAllCoursesAssignedToFacultiesInDB = async () => {
   const courses = await AssignCourcesToFacultiesModel.find({})
     .populate("courseId")

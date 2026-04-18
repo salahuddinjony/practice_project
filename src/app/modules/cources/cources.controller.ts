@@ -5,7 +5,7 @@ import catchAsync from "../../utils/CatchAsync.js";
 import { checkCommonValidation } from "../../utils/checkCommonValidation.js";
 import { CourseService } from "./cources.service.js";
 
-const createCource = catchAsync(
+const createCourse = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const courseData = req.body; // Get course data from the request body
 
@@ -208,7 +208,7 @@ const getSingleAssignedCourseToFaculty = catchAsync(
 );
 
 export const CourseController = {
-  createCource,
+  createCource: createCourse,
   getAllCources,
   getCourseById,
   updateCourseInfo,

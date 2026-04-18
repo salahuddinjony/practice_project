@@ -13,6 +13,7 @@ import { checkCommonValidation } from '../../utils/checkCommonValidation.js'
 // Get all students-GET
 const getAllStudents = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const query = req.query
+    // console.log("test user", req.user); 
     const result = await StudentService.getAllStudentsFromDB(query)
     if (result) { // Check if result is not null or undefined
         sendResponse(res, {
