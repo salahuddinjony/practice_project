@@ -102,7 +102,7 @@ userSchema.statics.isUserIdValid = async function (
   checkIsBlocked: boolean = true,
 ): Promise<Partial<UserInterface>> {
   const user = await UserModel.findOne({ id, isDeleted: false }).select(
-    "+password status role needsPasswordReset id",
+    "+password status role needsPasswordReset id passwordChangedAt",
   );
 
   if (!user) {
@@ -126,6 +126,13 @@ userSchema.statics.isUserIdValid = async function (
   }
 
   return user;
+};
+// check if password changed at is greater than iat (invalidate old tokens)
+userSchema.statics.isPasswordChanged = function (passwordChangedAt: Date, iat: number): boolean {
+  if (passwordChangedAt && typeof iat === "number" && passwordChangedAt > new Date(iat * 1000)) {
+    return true;
+  }
+  return false;
 };
 // Create the User model using the schema
 export const UserModel = model<UserInterface, UserMethods>("User", userSchema);

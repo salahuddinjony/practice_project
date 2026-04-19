@@ -51,7 +51,7 @@ const getAllCourcesFromDB = async (query: Record<string, unknown> = {}) => {
     searchableFields: ["title", "prefix"],
   });
   const { meta, data: courses } = await paginate(CourseModel, parsed, (q) =>
-    q.populate(buildNestedPopulate("prerequisiteCources.course", 3)),
+    q.populate(buildNestedPopulate("prerequisiteCources.course", 3) ),
   );
   return { meta, courses };
 };

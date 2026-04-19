@@ -21,4 +21,5 @@ export interface UserMethods extends Model<UserInterface> {
     checkPassword?: boolean,
     checkIsBlocked?: boolean,
   ): Promise<Partial<UserInterface>>;
+  isPasswordChanged(passwordChangedAt: Date, iat: number): boolean;
 }
