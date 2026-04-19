@@ -12,6 +12,7 @@ const getAllStudents = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const query = req.query;
     // console.log("test user", req.user);
+    // console.log("iat", req.user.iat);
     // console.log("Cookie:", req.cookies);
 
     const result = await StudentService.getAllStudentsFromDB(query);

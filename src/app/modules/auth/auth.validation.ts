@@ -31,9 +31,17 @@ const refreshTokenValidation = z.object({
       message: "Refresh token is required",
     }),
 });
-
+// 
+const forgetPasswordValidation = z.object({
+  id: z.string().min(1, {
+    message: "User ID is required",
+  }),
+}).strict().refine((data) => Object.keys(data).length > 0, {
+  message: "Provide at least one valid field to forget password",
+});
 export const AuthValidation = {
   authLoginValidation,
   changePasswordValidation,
   refreshTokenValidation,
+  forgetPasswordValidation,
 };

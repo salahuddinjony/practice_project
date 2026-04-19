@@ -7,7 +7,6 @@ import { UserRoleType } from "../modules/user/user.interface.js";
 import { UserModel } from "../modules/user/user.model.js";
 
 // middleware to log incoming requests for debugging
-
 const authorizationValidate = (...roles: UserRoleType[]) => {
   return catchAsync(
     async (req: Request, _res: Response, next: NextFunction) => {
@@ -38,7 +37,12 @@ const authorizationValidate = (...roles: UserRoleType[]) => {
       }
 
       // check password change (invalidate old tokens)
-      if (UserModel.isPasswordChanged(isValidUser.passwordChangedAt as Date, iat as number)) {
+      if (
+        UserModel.isPasswordChanged(
+          isValidUser.passwordChangedAt as Date,
+          iat as number,
+        )
+      ) {
         throw new AppError("Password changed, please login again", 401);
       }
 
@@ -51,6 +55,7 @@ const authorizationValidate = (...roles: UserRoleType[]) => {
       }
 
       req.user = isValidUser;
+      // req.user.iat=iat as number;
       return next();
     },
   );

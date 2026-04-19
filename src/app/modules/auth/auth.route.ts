@@ -32,4 +32,10 @@ router.post(
   validation(AuthValidation.refreshTokenValidation, "cookies"),
   AuthController.refreshToken,
 );
+//forget password
+router.post(
+  "/forget-password",
+  validation(AuthValidation.forgetPasswordValidation),
+  AuthController.forgetPassword,
+);
 export const AuthRoute = router;

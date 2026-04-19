@@ -90,9 +90,34 @@ const refreshTokenIntoDB = async (refreshToken: string) => {
     accessToken,
   };
 };
+// forget password
+const forgetPasswordIntoDB = async (id: string) => {
+  const isValidUser = await UserModel.isUserIdValid(
+    id,
+    undefined,
+    false,
+    false,
+  );
+  if (!isValidUser) {
+    throw new AppError("User not found", 404);
+  }
+  if (isValidUser.status !== "active") {
+    throw new AppError("User is not active, please contact admin", 401);
+  }
+  // generate token
+  const resetPasswordToken = jwt.sign({ isValidUser }, config.JWT_SECRET, {
+    expiresIn: "5m",
+  } as SignOptions);
 
+  const url = `${config.FRONTEND_URL}/reset-password?id=${id}&token=${resetPasswordToken}`;
+  return {
+    url: url,
+    expiresIn: "5m",
+  };
+};
 export const AuthService = {
   authLoginIntoDB,
   changePasswordIntoDB,
   refreshTokenIntoDB,
+  forgetPasswordIntoDB,
 };

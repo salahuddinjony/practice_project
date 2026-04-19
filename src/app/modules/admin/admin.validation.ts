@@ -1,17 +1,57 @@
 // admin zod validation
 import { z } from "zod";
+import { userNameValidationSchema } from "../student/student.validation.js";
 
-const adminSchemaValidation = z.object({
-    name: z.string().min(1, "Name is required"),
-    email: z.string().email("Invalid email format"),
-    password: z.string().min(6, "Password must be at least 6 characters long")
-}).strict();
+const adminDataValidationSchema = z
+  .object({
+    name: userNameValidationSchema,
+    gender: z.enum(["male", "female", "other"] as const, {
+      message: "Invalid gender",
+    }),
+    dateOfBirth: z.coerce
+      .date({ message: "Invalid date of birth" })
+      .refine((date) => date < new Date(), {
+        message: "Date of birth must be in the past",
+      }),
+    email: z.string().email("Invalid email address"),
+    contactNo: z.string().min(1, "Contact number is required"),
+    emergencyContactNo: z
+      .string()
+      .min(1, "Emergency contact number is required"),
+    bloodGroup: z
+      .enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"], {
+        message: "Invalid blood group",
+      })
+      .optional(),
+    presentAddress: z.string().min(1, "Present address is required"),
+    permanentAddress: z.string().min(1, "Permanent address is required"),
+    profileImage: z.string().optional(),
+  })
+  .strict();
 
-const adminUpdateValidation = adminSchemaValidation.partial().strict().refine((data) => Object.keys(data).length > 0, {
-    message: 'Provide at least one valid field to update',
-});
+// * Body for POST /create-admin: matches `CreateAdmin` controller (`password` + `adminData`).
+const createAdminPayloadSchema = z
+  .object({
+    password: z
+      .string()
+      .refine((val) => val.trim() === "" || val.length >= 6, {
+        message:
+          "Password must be at least 6 characters, or use an empty string for the default password",
+      })
+      .optional(),
+    adminData: adminDataValidationSchema,
+  })
+  .strict();
+
+const adminUpdatePayloadSchema = adminDataValidationSchema
+  .partial()
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Provide at least one valid field to update",
+  });
+
 export const adminValidation = {
-    adminSchemaValidation,
-    adminUpdateValidation
-
-}
+  adminDataValidationSchema,
+  createAdminPayloadSchema,
+  adminUpdatePayloadSchema,
+};

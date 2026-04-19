@@ -19,4 +19,5 @@ export default {
   JWT_REFRESH_EXPIRES_IN:
     (process.env.JWT_REFRESH_EXPIRES_IN as string) || "7d",
   DOMAIN: process.env.DOMAIN as string,
+  FRONTEND_URL: process.env.FRONTEND_URL as string,
 };

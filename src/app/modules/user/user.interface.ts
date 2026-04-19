@@ -1,12 +1,14 @@
 import { Model } from "mongoose";
 import { UserRole } from "./user.constant.js";
 
+export type UserRoleEnum = "admin" | "student" | "faculty";
 export interface UserInterface {
   id: string;
   password: string;
+  email: string;
   passwordChangedAt?: Date;
   needsPasswordReset?: boolean;
-  role: "admin" | "student" | "faculty";
+  role: UserRoleEnum;
   isDeleted?: boolean;
   status?: "in-progress" | "active" | "inactive" | "pending" | "blocked";
 }
