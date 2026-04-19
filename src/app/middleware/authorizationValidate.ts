@@ -5,9 +5,8 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import config from "../config/index.js";
 import { UserRoleType } from "../modules/user/user.interface.js";
 import { UserModel } from "../modules/user/user.model.js";
-import { Admin } from "../modules/admin/admin.interface.js";
-// middleware to log incoming requests for debugging
 
+// middleware to log incoming requests for debugging
 const authorizationValidate = (...roles: UserRoleType[]) => {
   return catchAsync(
     async (req: Request, _res: Response, next: NextFunction) => {
@@ -16,25 +15,48 @@ const authorizationValidate = (...roles: UserRoleType[]) => {
       if (!token) {
         throw new AppError("Unauthorized", 401);
       }
-    //   console.log("Token:", token);
-    const decoded = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
-    console.log("Decoded:", decoded);
-    const {id, role, status} = decoded.user;
-    const isValidUser = await UserModel.isUserIdValid(id, undefined, false, false);
-    if (!isValidUser) {
-      throw new AppError("User not found", 404);
-    }
+      //   console.log("Token:", token);
+      const decoded = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
+      const { id, role } = decoded.user;
+      // iat/exp live on the JWT root;
+      const iat = decoded.iat;
+      const isValidUser = await UserModel.isUserIdValid(
+        id,
+        undefined, // password is not required for this check
+        false, // check password is not required for this check
+        false, // check status is not required for this check
+      );
+      // check user exists
+      if (!isValidUser) {
+        throw new AppError("User not found", 404);
+      }
 
-    //check status is active
-    if (isValidUser.status !== "active") {
-      throw new AppError("User is not active, please contact admin", 401);
-    }
+      // check status
+      if (isValidUser.status !== "active") {
+        throw new AppError("User is not active, please contact admin", 401);
+      }
 
-    if (!roles.includes(role as UserRoleType)) {
-      throw new AppError("You are not authorized to access this resource", 403);
-    }
-    req.user = isValidUser;
-    return next();
+      // check password change (invalidate old tokens)
+      if (
+        UserModel.isPasswordChanged(
+          isValidUser.passwordChangedAt as Date,
+          iat as number,
+        )
+      ) {
+        throw new AppError("Password changed, please login again", 401);
+      }
+
+      // finally check role
+      if (!roles.includes(role as UserRoleType)) {
+        throw new AppError(
+          "You are not authorized to access this resource",
+          403,
+        );
+      }
+
+      req.user = isValidUser;
+      // req.user.iat=iat as number;
+      return next();
     },
   );
 };

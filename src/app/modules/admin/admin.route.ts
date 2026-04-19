@@ -1,10 +1,12 @@
-import express from 'express'
+import express from "express";
 
-import validation from '../../middleware/validator/validetResquest.js'
-import { AdminController } from './admin.controller.js'
-import { adminValidation } from './admin.validation.js'
+import validation from "../../middleware/validator/validetResquest.js";
+import { AdminController } from "./admin.controller.js";
+import { adminValidation } from "./admin.validation.js";
+import authorizationValidate from "../../middleware/authorizationValidate.js";
+import { UserRole } from "../user/user.constant.js";
 
-const router = express.Router()
+const router = express.Router();
 
 // Define your admin routes here
 
@@ -13,31 +15,31 @@ const router = express.Router()
 
 //create admin
 router.post(
-    '/create-admin',
-    validation(adminValidation.adminSchemaValidation),
-    AdminController.CreateAdmin
-)
+  "/create-admin",
+  authorizationValidate(UserRole.ADMIN),
+  validation(adminValidation.createAdminPayloadSchema),
+  AdminController.CreateAdmin,
+);
 
 // Get all admins
-router.get('/get-all-admins', AdminController.getAllAdmins)
-
+router.get("/get-all-admins", authorizationValidate(UserRole.ADMIN), AdminController.getAllAdmins);
 
 // Get admin by ID
-router.get('/get-admin/:id', AdminController.getAdminById)
+router.get("/get-admin/:id", authorizationValidate(UserRole.ADMIN), AdminController.getAdminById);
 
 // update admin info
 router.patch(
-    '/update-admin/:id',
-    validation(adminValidation.adminUpdateValidation),
-    AdminController.updateAdminInfo
-)
+  "/update-admin/:id",
+  authorizationValidate(UserRole.ADMIN),
+  validation(adminValidation.adminUpdatePayloadSchema),
+  AdminController.updateAdminInfo,
+);
 
 //delete admin
-router.delete('/delete-admin/:id', AdminController.deleteAdmin)
+router.delete("/delete-admin/:id", authorizationValidate(UserRole.ADMIN), AdminController.deleteAdmin);
 
 // restore deleted admins
 // router.patch('/restore-deleted-admins', AdminController.restoreDeletedAdmins)
 
-
 // Export the router to be used in the main app
-export const AdminRoute = router
+export const AdminRoute = router;

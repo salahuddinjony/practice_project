@@ -1,12 +1,14 @@
 import { Model } from "mongoose";
 import { UserRole } from "./user.constant.js";
 
+export type UserRoleEnum = "admin" | "student" | "faculty";
 export interface UserInterface {
   id: string;
   password: string;
+  email: string;
   passwordChangedAt?: Date;
   needsPasswordReset?: boolean;
-  role: "admin" | "student" | "faculty";
+  role: UserRoleEnum;
   isDeleted?: boolean;
   status?: "in-progress" | "active" | "inactive" | "pending" | "blocked";
 }
@@ -21,4 +23,5 @@ export interface UserMethods extends Model<UserInterface> {
     checkPassword?: boolean,
     checkIsBlocked?: boolean,
   ): Promise<Partial<UserInterface>>;
+  isPasswordChanged(passwordChangedAt: Date, iat: number): boolean;
 }

@@ -1,12 +1,14 @@
 import { paginate, parseListQuery } from "../../builder/queryBuilder.js";
 import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
+import { UserModel } from "../user/user.model.js";
 import { Admin } from "./admin.interface.js";
 import AdminModel from "./admin.model.js";
+import { startSession } from "mongoose";
 
-const CreateAdminIntoDB = async (admin: Admin) => {
-  const createdAdmin = await AdminModel.create(admin);
-  return createdAdmin;
-};
+// const CreateAdminIntoDB = async (admin: Admin) => {
+//   const createdAdmin = await AdminModel.create(admin);
+//   return createdAdmin;
+// };
 
 // Get all admins from DB
 const getAllAdminsFromDB = async (query: Record<string, unknown> = {}) => {
@@ -36,16 +38,34 @@ const updateAdminInDB = async (id: string, admin: Partial<Admin>) => {
 
 // delete admin from DB
 const deleteAdminFromDB = async (id: string) => {
-  const deletedAdmin = await AdminModel.findByIdAndUpdate(
-    id,
-    { isDeleted: true },
-    { returnDocument: "after" },
-  );
-  return deletedAdmin;
+  const session = await startSession();
+  try {
+    session.startTransaction();
+    const deletedAdmin = await AdminModel.findOneAndUpdate(
+      { _id: id, isDeleted: false },
+      { isDeleted: true },
+      { returnDocument: "after", session },
+    );
+    if (!deletedAdmin) {
+      await session.abortTransaction();
+      return null;
+    }
+    await UserModel.findByIdAndUpdate(
+      deletedAdmin.user,
+      { isDeleted: true },
+      { session },
+    );
+    await session.commitTransaction();
+    return deletedAdmin;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
 };
 
 export const AdminService = {
-  CreateAdminIntoDB,
   getAllAdminsFromDB,
   getAdminByIdFromDB,
   updateAdminInDB,

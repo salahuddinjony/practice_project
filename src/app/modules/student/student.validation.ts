@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 
 // Name Schema
-const userNameValidationSchema = z.object({
+export const userNameValidationSchema = z.object({
     firstName: z.string()
         .trim()
         .max(20, 'First name cannot exceed 20 characters')

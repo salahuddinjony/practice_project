@@ -1,4 +1,3 @@
-import config from "../../config/index.js";
 import { Student } from "../student/student.interface.js";
 import { StudentModel } from "../student/student.model.js";
 import { UserInterface } from "./user.interface.js";
@@ -11,14 +10,20 @@ import { normalizeMongoUpdatePayload } from "../../utils/mongoPartialUpdate.js";
 import { AcademicSemesterModel } from "../academicSemester/academicSemester.model.js";
 import AcademicDeptModel from "../academicDept/academicDept.model.js";
 import { startSession } from "mongoose";
+import { Faculty } from "../faculty/faculty.interface.js";
+import { FacultyModel } from "../faculty/faculty.model.js";
+import { Admin } from "../admin/admin.interface.js";
+import AdminModel from "../admin/admin.model.js";
+
 // Service function to create a user in the database
 const createStudentIntoDB = async (password: string, StudentData: Student) => {
   // Simulating saving the user data to the database
   const userData: Partial<UserInterface> = {};
-  userData.password = password ?? config.DEFAULT_USER_PASSWORD;
+  const resolved = UserUtils.resolveNewUserPassword(password);
+  userData.password = resolved.password;
   userData.role = "student";
-  //if password is provided, then needsPasswordReset is false, otherwise it is true
-  userData.needsPasswordReset = password ? false : true;
+  userData.email = StudentData.email;
+  userData.needsPasswordReset = resolved.needsPasswordReset;
   // Use a session to ensure that both user and student creation are atomic operations. If either operation fails, the transaction will be rolled back, preventing partial data from being saved to the database.
   const session = await startSession();
   try {
@@ -56,10 +61,10 @@ const createStudentIntoDB = async (password: string, StudentData: Student) => {
     if (!academicDept) {
       throw new AppError("Academic department is deleted", 400);
     }
-    // Generate a unique student ID using the UserUtils.generatedStudentId function, which takes the admission semester ID and the session as parameters. This function will generate a unique student ID based on the admission semester and ensure that it is done within the same transaction to maintain data integrity.
-    userData.id = await UserUtils.generatedStudentId(
-      admissionSemesterId,
+    userData.id = await UserUtils.generateUserId(
+      "student",
       session,
+      admissionSemesterId,
     );
 
     // Keep user and student creation atomic to avoid partial records.
@@ -84,6 +89,86 @@ const createStudentIntoDB = async (password: string, StudentData: Student) => {
     await session.endSession();
   }
 };
+
+// for the faculty to add a new user
+const createFacultyIntoDB = async (password: string, FacultyData: Faculty) => {
+  // Simulating saving the user data to the database
+  const userData: Partial<UserInterface> = {};
+  const resolved = UserUtils.resolveNewUserPassword(password);
+  userData.password = resolved.password;
+  userData.role = "faculty";
+  userData.email = FacultyData.email;
+  userData.needsPasswordReset = resolved.needsPasswordReset;
+  // Use a session to ensure that both user and student creation are atomic operations. If either operation fails, the transaction will be rolled back, preventing partial data from being saved to the database.
+  const session = await startSession();
+  try {
+    // Start a transaction to ensure atomicity of user and student creation. This means that if any part of the process fails (either creating the user or the student), the entire transaction will be rolled back, ensuring data integrity and preventing partial records from being saved to the database.
+    session.startTransaction();
+
+    userData.id = await UserUtils.generateUserId("faculty", session);
+
+    // Keep user and student creation atomic to avoid partial records.
+    const [createNewUser] = await UserModel.create([userData], { session });
+
+    FacultyData.id = createNewUser!.id;
+    FacultyData.user = createNewUser!._id;
+    // Create the faculty document in the database using the FacultyModel, passing in the faculty data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and faculty records are created successfully or rolled back together in case of any errors.
+    const [createNewFaculty] = await FacultyModel.create([FacultyData], {
+      session,
+    });
+
+    await session.commitTransaction();
+    return createNewFaculty;
+  } catch (error) {
+    await session.abortTransaction();
+    throw new AppError(
+      error instanceof Error ? error.message : "Failed to create faculty user",
+      500,
+    );
+  } finally {
+    await session.endSession();
+  }
+};
+// for the admin to add a new user
+const createAdminIntoDB = async (password: string, AdminData: Admin) => {
+  // Simulating saving the user data to the database
+  const userData: Partial<UserInterface> = {};
+  const resolved = UserUtils.resolveNewUserPassword(password);
+  userData.password = resolved.password;
+  userData.role = "admin";
+  userData.email = AdminData.email;
+  userData.needsPasswordReset = resolved.needsPasswordReset;
+  // Use a session to ensure that both user and student creation are atomic operations. If either operation fails, the transaction will be rolled back, preventing partial data from being saved to the database.
+  const session = await startSession();
+  try {
+    // Start a transaction to ensure atomicity of user and student creation. This means that if any part of the process fails (either creating the user or the student), the entire transaction will be rolled back, ensuring data integrity and preventing partial records from being saved to the database.
+    session.startTransaction();
+
+    userData.id = await UserUtils.generateUserId("admin", session);
+
+    // Keep user and student creation atomic to avoid partial records.
+    const [createNewUser] = await UserModel.create([userData], { session });
+
+    AdminData.id = createNewUser!.id;
+    AdminData.user = createNewUser!._id;
+    // Create the admin document in the database using the AdminModel, passing in the admin data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and admin records are created successfully or rolled back together in case of any errors.
+    const [createNewAdmin] = await AdminModel.create([AdminData], {
+      session,
+    });
+
+    await session.commitTransaction();
+    return createNewAdmin;
+  } catch (error) {
+    await session.abortTransaction();
+    throw new AppError(
+      error instanceof Error ? error.message : "Failed to create admin user",
+      500,
+    );
+  } finally {
+    await session.endSession();
+  }
+};
+
 // Service function to get all users from the database
 const getAllUsersFromDB = async (query: Record<string, unknown>) => {
   const parsed = parseListQuery(query, {
@@ -146,6 +231,18 @@ const deleteUserFromDB = async (id: string) => {
 
     // Keep user and related student soft-delete in the same transaction.
     await StudentModel.findOneAndUpdate(
+      { user: deletedUser._id, isDeleted: false },
+      { isDeleted: true },
+      { session },
+    );
+    // 3. Keep user and related admin soft-delete in the same transaction.
+    await AdminModel.findOneAndUpdate(
+      { user: deletedUser._id, isDeleted: false },
+      { isDeleted: true },
+      { session },
+    );
+    // 4. Keep user and related faculty soft-delete in the same transaction.
+    await FacultyModel.findOneAndUpdate(
       { user: deletedUser._id, isDeleted: false },
       { isDeleted: true },
       { session },
@@ -241,6 +338,8 @@ const restoreDeletedUsersInDB = async () => {
 };
 export const UserService = {
   createStudentIntoDB,
+  createFacultyIntoDB,
+  createAdminIntoDB,
   getAllUsersFromDB,
   getUserByIdFromDB,
   updateUserInfoInDB,
