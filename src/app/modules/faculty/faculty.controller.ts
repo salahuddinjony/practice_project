@@ -8,12 +8,14 @@ import { UserService } from "../user/user.service.js";
 
 const createFaculty = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    // console.log(req.file);
+    // console.log(req.body); 
     const { password, facultyData } = req.body;
     if (!facultyData || typeof facultyData !== "object") {
       next(new AppError("Faculty payload is required", 400));
       return;
     }
-    const result = await UserService.createFacultyIntoDB(password, facultyData);
+    const result = await UserService.createFacultyIntoDB(password, facultyData, req.file as Express.Multer.File);
 
     if (!result) return next(new AppError("Failed to create faculty", 404));
 

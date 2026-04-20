@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
-import catchAsync from "../../utils/CatchAsync.js";
+import { removeUploadedLocalFile } from "../../utils/sendImageToCloudinary.js";
 
 export type ValidationSource = "body" | "cookies" | "query";
 
@@ -9,8 +9,8 @@ const validation = (
   schema: z.ZodTypeAny,
   source: ValidationSource = "body",
 ) => {
-  return catchAsync(
-    async (req: Request, _res: Response, next: NextFunction) => {
+  return async (req: Request, _res: Response, next: NextFunction) => {
+    try {
       const raw =
         source === "body"
           ? req.body
@@ -22,8 +22,11 @@ const validation = (
         req.body = parsed;
       }
       return next();
-    },
-  );
+    } catch (error) {
+      await removeUploadedLocalFile(req.file?.path);
+      return next(error);
+    }
+  };
 };
 
 export default validation;

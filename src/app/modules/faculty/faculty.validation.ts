@@ -11,7 +11,7 @@ const createFacultyValidationSchema = z
     emergencyContactNo: z
       .string()
       .min(1, "Faculty emergency contact number is required"),
-    profileImage: z.string().optional(),
+    // profileImage: z.string().optional(),
     gender: z.enum(["male", "female", "other"], { message: "Invalid gender" }),
     dateOfBirth: z.coerce.date({ message: "Invalid date of birth" }),
     bloodGroup: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"], {

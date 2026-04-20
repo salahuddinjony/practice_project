@@ -15,6 +15,7 @@ import { FacultyModel } from "../faculty/faculty.model.js";
 import { Admin } from "../admin/admin.interface.js";
 import AdminModel from "../admin/admin.model.js";
 import { UserRole } from "./user.constant.js";
+import { removeUploadedLocalFile, sendImageToCloudinary } from "../../utils/sendImageToCloudinary.js";
 
 // Service function to create a user in the database
 const createStudentIntoDB = async (password: string, StudentData: Student) => {
@@ -92,7 +93,11 @@ const createStudentIntoDB = async (password: string, StudentData: Student) => {
 };
 
 // for the faculty to add a new user
-const createFacultyIntoDB = async (password: string, FacultyData: Faculty) => {
+const createFacultyIntoDB = async (
+  password: string,
+  FacultyData: Faculty,
+  file: Express.Multer.File,
+) => {
   // Simulating saving the user data to the database
   const userData: Partial<UserInterface> = {};
   const resolved = UserUtils.resolveNewUserPassword(password);
@@ -111,8 +116,16 @@ const createFacultyIntoDB = async (password: string, FacultyData: Faculty) => {
     // Keep user and student creation atomic to avoid partial records.
     const [createNewUser] = await UserModel.create([userData], { session });
 
+    const { path } = file;
+    const imageName = `${createNewUser?.id}-${FacultyData?.name?.firstName}`;
+    const { secure_url } = (await sendImageToCloudinary(path, imageName)) as {
+      secure_url: string;
+    };
+
+    FacultyData.profileImage = secure_url;
     FacultyData.id = createNewUser!.id;
     FacultyData.user = createNewUser!._id;
+    
     // Create the faculty document in the database using the FacultyModel, passing in the faculty data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and faculty records are created successfully or rolled back together in case of any errors.
     const [createNewFaculty] = await FacultyModel.create([FacultyData], {
       session,
@@ -127,6 +140,7 @@ const createFacultyIntoDB = async (password: string, FacultyData: Faculty) => {
       500,
     );
   } finally {
+    await removeUploadedLocalFile(file?.path);
     await session.endSession();
   }
 };

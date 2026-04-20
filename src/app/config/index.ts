@@ -30,4 +30,7 @@ export default {
   SMTP_PASS: process.env.SMTP_PASS as string,
   EMAIL_USER: process.env.EMAIL_USER as string,
   EMAIL_APP_NAME: process.env.EMAIL_APP_NAME as string,
+  CLOUD_NAME: process.env.CLOUD_NAME as string,
+  API_KEY: process.env.API_KEY as string,
+  API_SECRET: process.env.API_SECRET as string,
 };
