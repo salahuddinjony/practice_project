@@ -6,6 +6,7 @@ import { checkCommonValidation } from "../../utils/checkCommonValidation.js";
 import { AdminService } from "./admin.service.js";
 import { UserService } from "../user/user.service.js";
 import { Admin } from "./admin.interface.js";
+import { sendImageToCloudinary } from "../../utils/sendImageToCloudinary.js";
 
 // Controller function to handle creating an admin
 const CreateAdmin = catchAsync(
@@ -19,6 +20,7 @@ const CreateAdmin = catchAsync(
     const result = await UserService.createAdminIntoDB(
       password,
       adminData as Admin,
+      req.file as Express.Multer.File,
     );
 
     if (result) {
@@ -83,10 +85,31 @@ const updateAdminInfo = catchAsync(
       req.params.id as string,
       next,
     );
-    const updatedData = req.body; // Get updated admin data from the request body
+    const file = req.file as Express.Multer.File | undefined;
+    let updatedData = { ...(req.body.admin as Record<string, unknown>) };
+
+    if (Object.keys(updatedData).length === 0 && !file) {
+      next(
+        new AppError(
+          "Provide at least one admin field to update or a profile image file",
+          400,
+        ),
+      );
+      return;
+    }
+
+    if (file) {
+      const imageName = `${adminId}-profile`;
+      const { secure_url } = (await sendImageToCloudinary(
+        file.path,
+        imageName,
+      )) as { secure_url: string };
+      updatedData = { ...updatedData, profileImage: secure_url };
+    }
+
     const result = await AdminService.updateAdminInDB(
       adminId as string,
-      updatedData,
+      updatedData as Partial<Admin>,
     );
     if (result) {
       // Check if result is not null or undefined

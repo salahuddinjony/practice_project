@@ -1,9 +1,15 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import { StudentController } from "./student.controller.js";
 import validation from "../../middleware/validator/validetResquest.js";
 import { studentValidation } from "./student.validation.js";
 import authorizationValidate from "../../middleware/authorizationValidate.js";
 import { UserRole } from "../user/user.constant.js";
+import {
+  removeUploadedLocalFile,
+  upload,
+} from "../../utils/sendImageToCloudinary.js";
+import { normalizeUpdateRequestBody } from "../../utils/normalizeUpdateRequestBody.js";
+
 const router = express.Router();
 
 // Define your student routes here
@@ -31,10 +37,23 @@ router.get(
   StudentController.getStudentById,
 );
 
-// update student info
+// PATCH: multipart `data` + optional `file`, or file only; or application/json `{ "student": { ... } }`.
 router.patch(
   "/update-student/:id",
   authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.FACULTY),
+  upload.single("file"),
+  async (req: Request, _res: Response, next: NextFunction) => {
+    try {
+      normalizeUpdateRequestBody(req, {
+        payloadKey: "student",
+        shape: "nested",
+      });
+      next();
+    } catch (error) {
+      await removeUploadedLocalFile(req.file?.path);
+      next(error);
+    }
+  },
   validation(studentValidation.updateStudentValidationSchema),
   StudentController.updateStudentInfo,
 );

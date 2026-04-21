@@ -9,6 +9,7 @@ import { UserInterface } from "./user.interface.js";
 
 const createStudent = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const file = req.file as Express.Multer.File;
     const { password, student: studentData } = req.body; // Get user data from the request body
     if (!studentData || typeof studentData !== "object") {
       next(new AppError("Student payload is required", 400));
@@ -18,7 +19,7 @@ const createStudent = catchAsync(
     // const zodValidationResult = zodValidateStudent(studentData)
 
     // Call the service function to create the user in the database
-    const result = await UserService.createStudentIntoDB(password, studentData);
+    const result = await UserService.createStudentIntoDB(password, studentData, file);
 
     if (result) {
       // Check if result is not null or undefined

@@ -4,6 +4,7 @@ import { userValidations } from "./user.validator.js";
 import validation from "../../middleware/validator/validetResquest.js";
 import { UserRole } from "./user.constant.js";
 import authorizationValidate from "../../middleware/authorizationValidate.js";
+import { removeUploadedLocalFile, upload } from "../../utils/sendImageToCloudinary.js";
 
 // Create a router instance
 const router = express.Router();
@@ -14,11 +15,21 @@ const router = express.Router();
 router.post(
   "/create-student",
   authorizationValidate(UserRole.ADMIN),
+  upload.single("file"),
+  async (req: Request, _res: Response, next: NextFunction) => {
+    try {
+      req.body = JSON.parse(req.body.data);
+      next();
+    } catch (error) {
+      await removeUploadedLocalFile(req.file?.path);
+      next(error);
+    }
+  },
   validation(userValidations.createStudentPayloadSchema), // Validate the request body against the createStudentPayloadSchema
   UserController.createStudent,
 );
-// *** Get Me
 
+// *** Get Me ****
 // Get Me Profile
 router.get(
   "/get-my-profile",

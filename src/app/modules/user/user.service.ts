@@ -15,10 +15,17 @@ import { FacultyModel } from "../faculty/faculty.model.js";
 import { Admin } from "../admin/admin.interface.js";
 import AdminModel from "../admin/admin.model.js";
 import { UserRole } from "./user.constant.js";
-import { removeUploadedLocalFile, sendImageToCloudinary } from "../../utils/sendImageToCloudinary.js";
+import {
+  removeUploadedLocalFile,
+  sendImageToCloudinary,
+} from "../../utils/sendImageToCloudinary.js";
 
 // Service function to create a user in the database
-const createStudentIntoDB = async (password: string, StudentData: Student) => {
+const createStudentIntoDB = async (
+  password: string,
+  StudentData: Student,
+  file: Express.Multer.File,
+) => {
   // Simulating saving the user data to the database
   const userData: Partial<UserInterface> = {};
   const resolved = UserUtils.resolveNewUserPassword(password);
@@ -74,6 +81,13 @@ const createStudentIntoDB = async (password: string, StudentData: Student) => {
 
     StudentData.id = createNewUser!.id;
     StudentData.user = createNewUser!._id;
+
+    const { path } = file;
+    const imageName = `${createNewUser?.id}-${StudentData?.name?.firstName}`;
+    const { secure_url } = (await sendImageToCloudinary(path, imageName)) as {
+      secure_url: string;
+    };
+    StudentData.profileImage = secure_url;
     // Create the student document in the database using the StudentModel, passing in the student data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and student records are created successfully or rolled back together in case of any errors.
     const [createNewStudent] = await StudentModel.create([StudentData], {
       session,
@@ -88,6 +102,7 @@ const createStudentIntoDB = async (password: string, StudentData: Student) => {
       500,
     );
   } finally {
+    await removeUploadedLocalFile(file?.path);
     await session.endSession();
   }
 };
@@ -125,7 +140,7 @@ const createFacultyIntoDB = async (
     FacultyData.profileImage = secure_url;
     FacultyData.id = createNewUser!.id;
     FacultyData.user = createNewUser!._id;
-    
+
     // Create the faculty document in the database using the FacultyModel, passing in the faculty data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and faculty records are created successfully or rolled back together in case of any errors.
     const [createNewFaculty] = await FacultyModel.create([FacultyData], {
       session,
@@ -145,7 +160,11 @@ const createFacultyIntoDB = async (
   }
 };
 // for the admin to add a new user
-const createAdminIntoDB = async (password: string, AdminData: Admin) => {
+const createAdminIntoDB = async (
+  password: string,
+  AdminData: Admin,
+  file: Express.Multer.File,
+) => {
   // Simulating saving the user data to the database
   const userData: Partial<UserInterface> = {};
   const resolved = UserUtils.resolveNewUserPassword(password);
@@ -166,6 +185,13 @@ const createAdminIntoDB = async (password: string, AdminData: Admin) => {
 
     AdminData.id = createNewUser!.id;
     AdminData.user = createNewUser!._id;
+
+    const { path } = file;
+    const imageName = `${createNewUser?.id}-${AdminData?.name?.firstName}`;
+    const { secure_url } = (await sendImageToCloudinary(path, imageName)) as {
+      secure_url: string;
+    };
+    AdminData.profileImage = secure_url;
     // Create the admin document in the database using the AdminModel, passing in the admin data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and admin records are created successfully or rolled back together in case of any errors.
     const [createNewAdmin] = await AdminModel.create([AdminData], {
       session,
@@ -180,6 +206,7 @@ const createAdminIntoDB = async (password: string, AdminData: Admin) => {
       500,
     );
   } finally {
+    await removeUploadedLocalFile(file?.path);
     await session.endSession();
   }
 };

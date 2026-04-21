@@ -25,7 +25,6 @@ const adminDataValidationSchema = z
       .optional(),
     presentAddress: z.string().min(1, "Present address is required"),
     permanentAddress: z.string().min(1, "Permanent address is required"),
-    profileImage: z.string().optional(),
   })
   .strict();
 
@@ -43,12 +42,16 @@ const createAdminPayloadSchema = z
   })
   .strict();
 
-const adminUpdatePayloadSchema = adminDataValidationSchema
-  .partial()
-  .strict()
-  .refine((data) => Object.keys(data).length > 0, {
-    message: "Provide at least one valid field to update",
-  });
+const adminUpdatePayloadSchema = z
+  .object({
+    admin: adminDataValidationSchema
+      .partial()
+      .extend({
+        name: userNameValidationSchema.partial().strict().optional(),
+      })
+      .strict(),
+  })
+  .strict();
 
 export const adminValidation = {
   adminDataValidationSchema,

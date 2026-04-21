@@ -30,25 +30,26 @@ const createStudentPayloadSchema = z
 // For update, all fields are optional
 const updateUserValidationSchema = z
   .object({
-    password: z
-      .string({ message: "Password must be a string" })
-      .min(6, "Password must be at least 6 characters long")
-      .optional(),
-    needsPasswordReset: z.boolean().optional(),
-    role: z
-      .enum(["admin", "student", "faculty"] as const, {
-        message: "Role must be one of 'admin', 'student', or 'faculty'",
-      })
-      .optional(),
-    isDeleted: z.boolean().optional(),
+    // password: z
+    //   .string({ message: "Password must be a string" })
+    //   .min(6, "Password must be at least 6 characters long")
+    //   .optional(),
+    // needsPasswordReset: z.boolean().optional(),
+    // role: z
+    //   .enum(["admin", "student", "faculty"] as const, {
+    //     message: "Role must be one of 'admin', 'student', or 'faculty'",
+    //   })
+    //   .optional(),
+
     status: z
       .enum(["in-progress", "active", "inactive", "pending", "blocked"])
-      .optional(),
+      .refine((val) => val !== undefined, {
+        message: "Status is required",
+      }),
   })
-  .partial()
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
-    message: "Provide at least one valid field to update",
+    message: "Provide at provided status is required",
   });
 
 export const userValidations = {

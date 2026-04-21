@@ -8,6 +8,7 @@ import {
   removeUploadedLocalFile,
   upload,
 } from "../../utils/sendImageToCloudinary.js";
+import { normalizeUpdateRequestBody } from "../../utils/normalizeUpdateRequestBody.js";
 
 const router = express.Router();
 
@@ -38,6 +39,19 @@ router.get("/get-faculty/:id", FacultyController.getFacultyById);
 router.patch(
   "/update-faculty/:id",
   authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  upload.single("file"),
+  async (req: Request, _res: Response, next: NextFunction) => {
+    try {
+      normalizeUpdateRequestBody(req, {
+        payloadKey: "faculty",
+        shape: "nested",
+      });
+      next();
+    } catch (error) {
+      await removeUploadedLocalFile(req.file?.path);
+      next(error);
+    }
+  },
   validation(facultyValidations.updateFacultyValidationSchema),
   FacultyController.updateFacultyById,
 );
