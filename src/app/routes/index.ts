@@ -10,6 +10,7 @@ import { SemesterRegistrationRoute } from "../modules/semisterRegistration/semis
 import { OfferedCourseRoute } from "../modules/offeredCourse/offeredCourse.route.js";
 import { FacultyRoute } from "../modules/faculty/faculty.route.js";
 import { AuthRoute } from "../modules/auth/auth.route.js";
+import { EnrolledCourseRoute } from "../modules/enrolledCourse/enrolledCourse.route.js";
 
 const router = express.Router();
 
@@ -25,6 +26,7 @@ const moduleRoutes = [
   { path: "/semister-registrations", route: SemesterRegistrationRoute },
   { path: "/offered-course", route: OfferedCourseRoute },
   { path: "/auth", route: AuthRoute },
+  { path: "/enrolled-course", route: EnrolledCourseRoute },
 ];
 for (const moduleRoute of moduleRoutes) {
   router.use(moduleRoute.path, moduleRoute.route);

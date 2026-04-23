@@ -24,14 +24,24 @@ router.post(
 // Get all offered courses
 router.get(
   "/get-all-offered-courses",
-  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  authorizationValidate(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.FACULTY,
+    UserRole.STUDENT,
+  ),
   OfferedCourseController.getAllOfferedCourses,
 );
 
 // Get offered course by ID
 router.get(
   "/get-offered-course/:id",
-  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  authorizationValidate(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.FACULTY,
+    UserRole.STUDENT,
+  ),
   OfferedCourseController.getOfferedCourseById,
 );
 
