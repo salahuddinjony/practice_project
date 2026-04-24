@@ -29,4 +29,10 @@ router.patch(
 // Route for deleting an academic department
 router.delete('/delete-academic-dept/:id', AcademicDeptController.deleteAcademicDept)
 
+
+// Route for getting all deleted academic departments
+router.get('/get-all-deleted-academic-depts', AcademicDeptController.getAllDeletedAcademicDepts)
+
+// Route for restoring all deleted academic departments
+router.patch('/restore-deleted-academic-depts', AcademicDeptController.restoreDeletedAcademicDepts)
 export const AcademicDeptRoute = router

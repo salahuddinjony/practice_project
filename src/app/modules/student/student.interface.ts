@@ -40,7 +40,8 @@ export type Student = {
     localGuardian: localGuardian,
     profileImage?: string | undefined;
     admissionSemester: Types.ObjectId; // Reference to the AcademicSemester document, this will store the ObjectId of the associated academic semester document in the database, allowing us to establish a relationship between the student and their admission semester.
-    isDeleted?: boolean;
+    academicDept: Types.ObjectId; 
+    isDeleted?: boolean; // Optional field to indicate if the student is deleted
 
 }
 

@@ -1,5 +1,5 @@
 import { Types } from 'mongoose'
-import AppError from '../errors/AppError.js'
+import AppError from '../errors/handleAppError.js'
 import { NextFunction } from 'express'
 // Utility function to sanitize and validate ID
 const getSanitizedId = (id: string) => id.trim()

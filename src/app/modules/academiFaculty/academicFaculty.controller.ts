@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
-import AppError from '../../errors/AppError.js'
+import AppError from '../../errors/handleAppError.js'
 import sendResponse from '../../utils/response/responseSend.js'
 import catchAsync from '../../utils/CatchAsync.js'
 import { checkCommonValidation } from '../../utils/checkCommonValidation.js'
@@ -22,7 +22,8 @@ const createAcademicFaculty = catchAsync(async (req: Request, res: Response, nex
 
 // get all academic faculties-GET
 const getAllAcademicFaculties = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const result = await AcademicFacultyService.getAllAcademicFacultiesFromDB()
+    const query = req.query
+    const result = await AcademicFacultyService.getAllAcademicFacultiesFromDB(query)
     if (result) { // Check if result is not null or undefined
         sendResponse(res, {
             statusCode: 200,
@@ -87,11 +88,49 @@ const deleteAcademicFaculty = catchAsync(async (req: Request, res: Response, nex
     }
 
 })
+// Restore all deleted academic faculties-POST
+const restoreDeletedAcademicFaculties = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await AcademicFacultyService.restoreDeletedAcademicFacultiesInDB()
+    if (result) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: 'Deleted academic faculties restored successfully',
+            data: result
+        })
+    } 
+    else if (result === null) {
+        next(new AppError('There are no deleted academic faculties to restore', 404))
+    }
+    else {
+        next(new AppError('Failed to restore deleted academic faculties', 404))
+    }
+})
 
+// get all deleted academic faculties-GET
+const getAllDeletedAcademicFaculties = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const result = await AcademicFacultyService.getAllDeletedAcademicFacultiesFromDB()
+    if (result) { // Check if result is not null or undefined
+        sendResponse(res, {
+            statusCode: 200,
+            success: true,
+            message: 'Deleted academic faculties retrieved successfully',
+            data: result
+        })
+    }
+    else if (result === null) {
+        next(new AppError('No deleted academic faculties found', 404))
+    }
+    else {
+        next(new AppError('Failed to retrieve deleted academic faculties', 404))
+    }
+})
 export const AcademicFacultyController = {
     createAcademicFaculty,
     getAllAcademicFaculties,
     getAcademicFacultyById,
     updateAcademicFacultyInfo,
-    deleteAcademicFaculty
+    deleteAcademicFaculty,
+    restoreDeletedAcademicFaculties,
+    getAllDeletedAcademicFaculties
 }

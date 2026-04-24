@@ -1,11 +1,15 @@
 import config from './app/config/index.js'
 import app from './app.js'
 import { connectToDatabase } from './app/db.js'
+import { Server } from 'http'
+import { gracefulShutdown } from './app/utils/gracefullShutdownServer/shutDownServer.js'
+
+// Declare a variable to hold the server instance
+let myServer: Server | undefined;
+
 
 // Connect to MongoDB
 async function initializeDatabase() {
-
-
     try {
         await connectToDatabase()
         console.log('Connected to MongoDB')
@@ -17,13 +21,16 @@ async function initializeDatabase() {
 // Start the server
 async function startServer() {
     try {
-        app.listen(config.PORT, () => {
+        myServer = app.listen(config.PORT, () => {
             console.log(`Server is running on port ${config.PORT}`)
         })
     } catch (error) {
-        console.error('Errsasssaor starting server:', error)
+        console.error('Error starting server:', error)
     }
 }
+
+
+
 
 // Main function to connect to database and start the server
 async function main() {
@@ -39,4 +46,16 @@ async function main() {
 // Run the main function
 main()
 
+// Handle Critical Errors- Unhandled Promise Rejections and Uncaught Exceptions
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection:', reason)
+    gracefulShutdown(myServer, 'unhandledRejection', 1)
+})
 
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error)
+    gracefulShutdown(myServer, 'uncaughtException', 1)
+})
+//System Signals
+process.on('SIGINT', () => gracefulShutdown(myServer, 'SIGINT', 0))   // Ctrl + C
+process.on('SIGTERM', () => gracefulShutdown(myServer, 'SIGTERM', 0)) // Docker / PM2

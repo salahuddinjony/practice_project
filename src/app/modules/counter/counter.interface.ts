@@ -1,5 +1,6 @@
 
 export type counter= {
-    combineyearAndCode: string,
+    key: string,
+    name: string,
     sequenceValue: number
 }

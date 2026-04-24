@@ -1,27 +1,32 @@
-import { NextFunction, Request, Response } from 'express'
-import { z } from 'zod'
-import AppError from '../../errors/AppError.js'
-// middleware to log incoming requests for debugging
+import { NextFunction, Request, Response } from "express";
+import { z } from "zod";
+import { removeUploadedLocalFile } from "../../utils/sendImageToCloudinary.js";
 
-const validation = (schema: z.ZodTypeAny) => {
-    return async (req: Request, _res: Response, next: NextFunction) => {
-        try {
-            // console.log(`Incoming request: ${req.method} ${req.originalUrl}`)
-            await schema.parseAsync(req.body)
-            return next()
-        } catch (error) {
-            if (error instanceof z.ZodError) {
+export type ValidationSource = "body" | "cookies" | "query";
 
-                // details is an array of objects containing the validation error messages
-                const details = error.issues.map((issue) => ({
-                    message: issue.message
-                }))
-
-                return next(new AppError('Validation failed', 400, details))
-            }
-            return next(error)
-        }
+// *** Validate `body` (default), `cookies`, or `query` — use the matching schema per route.
+const validation = (
+  schema: z.ZodTypeAny,
+  source: ValidationSource = "body",
+) => {
+  return async (req: Request, _res: Response, next: NextFunction) => {
+    try {
+      const raw =
+        source === "body"
+          ? req.body
+          : source === "cookies"
+            ? (req.cookies ?? {})
+            : req.query;
+      const parsed = await schema.parseAsync(raw);
+      if (source === "body") {
+        req.body = parsed;
+      }
+      return next();
+    } catch (error) {
+      await removeUploadedLocalFile(req.file?.path);
+      return next(error);
     }
-}
+  };
+};
 
-export default validation
+export default validation;

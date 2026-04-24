@@ -3,7 +3,8 @@ import { counter } from "./counter.interface.js";
 
 
 const CounterSchema = new Schema<counter>({
-   combineyearAndCode: { type: String, required: true, unique: true },
+   key: { type: String, required: true, unique: true },
+   name: { type: String, required: true },
     sequenceValue: { 
         type: Number, 
         required: true ,

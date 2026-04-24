@@ -18,10 +18,12 @@ const academicSemesterValidationSchema = z.object({
     endMonth: z.enum([...monthEnum], {
         message: 'End month must be a valid month',
     })
-});
+}).strict();
 
 // For update, all fields are optional
-const updateAcademicSemesterValidationSchema = academicSemesterValidationSchema.partial();  
+const updateAcademicSemesterValidationSchema = academicSemesterValidationSchema.partial().strict().refine((data) => Object.keys(data).length > 0, {
+    message: 'Provide at least one valid field to update',
+});  // This allows for partial updates, meaning that when updating an academic semester, you can provide any subset of the fields defined in the original validation schema, making it flexible for different update scenarios.
 
 export const academicValidatons = {
     academicSemesterValidationSchema,
