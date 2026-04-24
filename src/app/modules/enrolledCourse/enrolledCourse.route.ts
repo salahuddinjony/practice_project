@@ -31,14 +31,14 @@ router.get(
 // Get enrolled course by ID
 router.get(
   "/get-enrolled-course/:id",
-  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STUDENT),
+  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   EnrolledCourseController.getEnrolledCourseById,
 );
 
 // update enrolled course info
 router.patch(
   "/update-enrolled-course/:id",
-  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STUDENT),
+  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   validation(enrolledCourseValidation.updateEnrolledCourseValidationSchema),
   EnrolledCourseController.updateEnrolledCourseById,
 );

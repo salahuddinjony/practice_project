@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-export type Grade = "A" | "B" | "C" | "D" | "F" | "N" | "N/A";
+export type Grade =  "A+" | "A" | "A-" | "B" | "C" | "D" | "F" | "N/A";
 
 export type CourseMarks = {
   classTest1: number;

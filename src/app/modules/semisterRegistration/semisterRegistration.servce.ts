@@ -8,6 +8,7 @@ import toValidDate from "../../utils/isValidDate.js";
 import { SemesterRegistrationStatus } from "./semisterRegistration.constant.js";
 import { OfferedCourseModel } from "../offeredCourse/offeredCourse.model.js";
 import mongoose from "mongoose";
+import { getSemesterRegistrationCreditsByCode } from "./utils/semisterRegistrationCredits.js";
 
 // create semister registration
 const createSemesterRegistrationIntoDB = async (
@@ -22,10 +23,27 @@ const createSemesterRegistrationIntoDB = async (
   if (!isValidAcademicSemesterId) {
     throw new AppError("Invalid academic semester ID", 400);
   }
-  const existingSemesterRegistration = await SemesterRegistrationModel.findOne({
-    academicSemester: semesterRegistration.academicSemester,
-    isDeleted: false,
-  });
+
+  // Reuse centralized min/max credit rules by semester code
+  const academicSemesterCode = isValidAcademicSemesterId.code;
+  const { minCredit, maxCredit } =
+    getSemesterRegistrationCreditsByCode(academicSemesterCode);
+
+  //Assign the min and max credit to the semester registration
+  semesterRegistration.minCredit = minCredit;
+  semesterRegistration.maxCredit = maxCredit;
+
+  const [existingSemesterRegistration, existingRegistration] =
+    await Promise.all([
+      SemesterRegistrationModel.findOne({
+        academicSemester: semesterRegistration.academicSemester,
+        isDeleted: false,
+      }),
+      SemesterRegistrationModel.findOne({
+        status: { $in: ["UPCOMING", "ONGOING"] },
+        isDeleted: false,
+      }),
+    ]);
 
   if (existingSemesterRegistration) {
     throw new AppError(
@@ -34,10 +52,6 @@ const createSemesterRegistrationIntoDB = async (
     );
   }
   //then checck is there already any registration status 'UPCOMING' or 'ONGOING' if not then throw an error
-  const existingRegistration = await SemesterRegistrationModel.findOne({
-    status: { $in: ["UPCOMING", "ONGOING"] },
-    isDeleted: false,
-  });
   if (existingRegistration) {
     throw new AppError(
       "There are already some registrations in the UPCOMING or ONGOING status",

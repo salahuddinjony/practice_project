@@ -7,7 +7,7 @@ import { EnrolledCourseService } from "./enrolledCourse.service.js";
 
 const createEnrolledCourse = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("User from the token", req.user);
+    // console.log("User from the token", req.user);
     const userId = req.user?._id;
     const enrolledCourseData = req.body; // Get course data from the request body
 
@@ -78,14 +78,15 @@ const getEnrolledCourseById = catchAsync(
 // update user info-PUT
 const updateEnrolledCourseById = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const courseId = checkCommonValidation.validateId(
+    const enrolledCourseId = checkCommonValidation.validateId(
       req.params.id as string,
       next,
     );
+  
     const updatedData = req.body; // Get updated course data from the request body
     const result = await EnrolledCourseService.updateEnrolledCourseByIdInDB(
-      courseId as string,
-      updatedData,
+      enrolledCourseId as string,
+      updatedData
     );
     if (result) {
       // Check if result is not null or undefined

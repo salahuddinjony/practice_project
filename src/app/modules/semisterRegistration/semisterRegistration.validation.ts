@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const getStartOfToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
 const semisterRegisterationBaseSchema = z
   .object({
     academicSemester: z.string().min(1, "Academic semester ID is required"),
@@ -17,13 +23,14 @@ const semisterRegisterationValidation = semisterRegisterationBaseSchema.refine(
   (data) => {
     return (
       data.endDate > data.startDate &&
-      data.startDate >= new Date() &&
+      data.startDate >= getStartOfToday() &&
       Object.keys(data).length > 0
     );
   },
   {
-    message: "End Date must be after Start Date",
-    path: ["endDate"],
+    message:
+      "End Date must be after Start Date and start date must be today or a future date",
+    path: ["endDate", "startDate"],
   },
 );
 
@@ -41,7 +48,7 @@ const semisterRegisterationUpdateValidation = semisterRegisterationBaseSchema
   .refine(
     (data) => {
       if (!data.startDate) return true;
-      return data.startDate >= new Date();
+      return data.startDate >= getStartOfToday();
     },
     {
       message: "Start Date must be today or a future date",
@@ -53,7 +60,7 @@ const semisterRegisterationUpdateValidation = semisterRegisterationBaseSchema
       if (!data.startDate || !data.endDate) return true;
       return (
         data.endDate > data.startDate &&
-        data.startDate >= new Date() &&
+        data.startDate >= getStartOfToday() &&
         data.startDate < data.endDate
       );
     },

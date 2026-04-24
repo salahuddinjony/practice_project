@@ -2,14 +2,14 @@ import { model, Schema } from "mongoose";
 import { CourseMarks, EnrolledCourse } from "./enrolledCourse.interface.js";
 import { applyExcludeFields } from "../../utils/excludeFiledWhenCreateResponse.js";
 
-const gradeEnum = ["A", "B", "C", "D", "F", "N/A"] as const;
+const gradeEnum = [ "A+", "A", "A-", "B", "C", "D", "F", "N/A"] as const;
 
 export const CourseMarksSchema: Schema<CourseMarks> = new Schema<CourseMarks>({
-  classTest1: { type: Number, default: 0, required: true },
-  midTerm: { type: Number, default: 0, required: true },
-  classTest2: { type: Number, default: 0, required: true },
-  finalExam: { type: Number, default: 0, required: true },
-  total: { type: Number, default: 0, required: true },
+  classTest1: { type: Number,min: 0, max: 20, default: 0, required: true },
+  midTerm: { type: Number,min: 0, max: 20, default: 0, required: true },
+  classTest2: { type: Number,min: 0, max: 20, default: 0, required: true },
+  finalExam: { type: Number,min: 0, max: 40, default: 0, required: true },
+  total: { type: Number,min: 0, max: 100, default: 0, required: true },
   grade: {
     type: String,
     default: "N/A",

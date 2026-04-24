@@ -22,6 +22,14 @@ const SemesterRegistrationSchema = new Schema<SemesterRegistration>({
         type: Date,
         required: true,
     },
+    minCredit: {
+        type: Number,
+        required: true,
+    },
+    maxCredit: {
+        type: Number,
+        required: true,
+    },
     isDeleted: {
         type: Boolean,
         default: false,

@@ -11,7 +11,7 @@ const router = express.Router();
 // Route for creating an semester registration
 router.post(
   "/create-semister-registration",
-  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN,UserRole.FACULTY,UserRole.STUDENT),
   validation(
     semisterRegisterationValidationSchema.semisterRegisterationValidation,
   ), // Validate the request body against the createSemesterRegistrationPayloadSchema
