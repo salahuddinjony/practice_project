@@ -7,6 +7,7 @@ import { UserInterface } from "../user/user.interface.js";
 import bcrypt from "bcrypt";
 import type { Types } from "mongoose";
 import { sendMail } from "../../utils/sendMail.js";
+import { TokenPayloadType } from "../../utils/commonTypes/types.js";
 
 const authLoginIntoDB = async (authData: Auth) => {
   const { id, password } = authData;
@@ -38,7 +39,7 @@ const authLoginIntoDB = async (authData: Auth) => {
 };
 
 const changePasswordIntoDB = async (
-  user: Partial<UserInterface> & { _id?: Types.ObjectId | string },
+  user:TokenPayloadType,
   payload: { oldPassword: string; newPassword: string },
 ) => {
   await UserModel.isUserIdValid(user.id as string, payload.oldPassword);
@@ -140,9 +141,7 @@ const resetPasswordIntoDB = async (
     throw new AppError("Invalid Given User ID", 401);
   }
 
-  const isValidUser: Partial<UserInterface> & {
-    _id?: Types.ObjectId | string;
-  } = await UserModel.isUserIdValid(id, undefined, false, false);
+  const isValidUser: TokenPayloadType = await UserModel.isUserIdValid(id, undefined, false, false);
   if (!isValidUser) {
     throw new AppError("User not found", 404);
   }

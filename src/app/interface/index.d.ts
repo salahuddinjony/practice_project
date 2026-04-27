@@ -6,7 +6,7 @@ declare global {
   namespace Express {
     interface Request {
       /** Set by `authorizationValidate` after JWT verification and DB user load */
-      user: Partial<UserInterface> & { _id?: Types.ObjectId | string, iat?: number };
+      user: TokenPayloadType;
       //it was
       //user: JwtPayload
     }

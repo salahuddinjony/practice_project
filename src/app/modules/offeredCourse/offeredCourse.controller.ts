@@ -27,10 +27,13 @@ const createOfferedCourse = catchAsync(
 );
 
 // get all users-GET
-const getAllOfferedCourses = catchAsync(
+const getMyOfferedCourses = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    console.log("user", user); 
+
     const query = req.query;
-    const result = await OfferedCourseService.getAllOfferedCoursesFromDB(query);
+    const result = await OfferedCourseService.getMyOfferedCoursesFromDB(query, user);
     if (result) {
       // Check if result is not null or undefined
       sendResponse(res, {
@@ -122,7 +125,7 @@ const deleteOfferedCourseById = catchAsync(
 
 export const OfferedCourseController = {
   createOfferedCourse,
-  getAllOfferedCourses,
+   getMyOfferedCourses,
   getOfferedCourseById,
   updateOfferedCourseInfo,
   deleteOfferedCourseById,

@@ -4,3 +4,6 @@ export const UserRole = {
   STUDENT: "student",
   FACULTY: "faculty",
 } as const;
+
+export const userStatusEnum = ["in-progress", "active", "inactive", "pending", "blocked"] as const;
+export const userRoleEnum = Object.values(UserRole);

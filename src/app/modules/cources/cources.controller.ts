@@ -142,6 +142,30 @@ const assignCourcesToFaculties = catchAsync(
   },
 );
 
+// get all assigned faculty By course id
+const getAssignedFacultyByCourseId = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const courseId = checkCommonValidation.validateId(
+      req.params.courseId as string,
+      next,
+    );
+    const result = await CourseService.getAssignedFacultyByCourseIdInDB(
+      courseId as string,
+    );
+    if (result) {
+      sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "Assigned faculties retrieved successfully",
+        data: result,
+      });
+    } else {
+      next(new AppError("Failed to get assigned faculties", 404));
+    }
+  },
+);
+
+
 // unassign cources from faculties
 const unassignCourcesFromFaculties = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -217,4 +241,5 @@ export const CourseController = {
   unassignCourcesFromFaculties,
   getAllCoursesAssignedToFaculty,
   getSingleAssignedCourseToFaculty,
+  getAssignedFacultyByCourseId,
 };

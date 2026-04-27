@@ -51,7 +51,7 @@ const getAllCourcesFromDB = async (query: Record<string, unknown> = {}) => {
     searchableFields: ["title", "prefix"],
   });
   const { meta, data: courses } = await paginate(CourseModel, parsed, (q) =>
-    q.populate(buildNestedPopulate("prerequisiteCources.course", 3) ),
+    q.populate(buildNestedPopulate("prerequisiteCources.course", 3)),
   );
   return { meta, courses };
 };
@@ -262,7 +262,7 @@ const unassignCourcesFromFacultiesInDB = async (
   return unassignedCources;
 };
 
-// get all assigned course-faculty mappings 
+// get all assigned course-faculty mappings
 const getAllCoursesAssignedToFacultiesInDB = async () => {
   const courses = await AssignCourcesToFacultiesModel.find({})
     .populate("courseId")
@@ -281,6 +281,23 @@ const getSingleAssignedCourseToFacultyInDB = async (facultyId: string) => {
   return course;
 };
 
+// get all assigned faculty By course id
+const getAssignedFacultyByCourseIdInDB = async (courseId: string) => {
+  const parsed = parseListQuery(
+    { courseId },
+    {
+      searchableFields: ["courseId"],
+      baseFilter: { courseId: courseId },
+    },
+  );
+  const { meta, data: facultiesData } = await paginate(
+    AssignCourcesToFacultiesModel,
+    parsed,
+    (q) => q.populate("faculties"),
+  );
+  return { meta, facultiesData };
+};
+
 export const CourseService = {
   createCourseIntoDB,
   getAllCourcesFromDB,
@@ -291,4 +308,5 @@ export const CourseService = {
   unassignCourcesFromFacultiesInDB,
   getAllCoursesAssignedToFacultiesInDB,
   getSingleAssignedCourseToFacultyInDB,
+  getAssignedFacultyByCourseIdInDB,
 };

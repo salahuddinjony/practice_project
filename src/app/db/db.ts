@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import config from '../app/config/index.js'
+import config from '../config/index.js'
 
 let connectionPromise: Promise<typeof mongoose> | null = null
 
@@ -9,7 +9,7 @@ export const connectToDatabase = async () => {
   }
 
   if (!config.MONGO_URI) {
-    throw new Error('MONGO_URI is not set')
+    throw new Error('MONGO_URI is not set ')
   }
 
   if (!connectionPromise) {

@@ -63,6 +63,11 @@ router.get(
   CourseController.getAllCoursesAssignedToFaculty,
 );
 
+// get all assigned faculty By course id
+router.get(
+  "/:courseId/get-assigned-faculties-by-course-id",
+  CourseController.getAssignedFacultyByCourseId,
+); 
 // Unassign courses from faculties
 router.put(
   "/:courseId/unassign-from-faculties",

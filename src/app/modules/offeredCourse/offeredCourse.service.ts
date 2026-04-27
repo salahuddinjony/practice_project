@@ -11,6 +11,10 @@ import {
 import { offeredCourse } from "./offeredCourse.interface.js";
 import { OfferedCourseModel } from "./offeredCourse.model.js";
 import { SemesterRegistrationStatus } from "../semisterRegistration/semisterRegistration.constant.js";
+import { UserInterface } from "../user/user.interface.js";
+import { Types } from "mongoose";
+import { TokenPayloadType } from "../../utils/commonTypes/types.js";
+import { StudentModel } from "../student/student.model.js";
 
 const createOfferedCourseIntoDB = async (payload: offeredCourse) => {
   //check semester registration is valid or not
@@ -75,36 +79,96 @@ const createOfferedCourseIntoDB = async (payload: offeredCourse) => {
   return await OfferedCourseModel.create(payload);
 };
 //get all offered courses
-const getAllOfferedCoursesFromDB = async (
+const getMyOfferedCoursesFromDB = async (
   query: Record<string, unknown> = {},
+  user: TokenPayloadType,
 ) => {
-  const parsed = parseListQuery(query, {
-    searchableFields: [
-      "semseterRegistration",
-      "academicSemester",
-      "academicFaculty",
-      "academicDepartment",
-      "course",
-      "faculty",
-    ],
-    baseFilter: { isDeleted: false },
+
+  //get current ongoing semester registration
+  const ongoingSemesterRegistration = await SemesterRegistrationModel.findOne({
+    status: SemesterRegistrationStatus.ONGOING,
+    isDeleted: false,
   });
-  const { meta, data: offeredCourses } = await paginate(
-    OfferedCourseModel,
-    parsed,
-    (q) =>
-      q
-        .populate({
-          path: "semseterRegistration",
-          populate: { path: "academicSemester" },
-        })
-        .populate({
-          path: "academicDepartment",
-          populate: { path: "academicFaculty" },
-        })
-        .populate("course faculty"),
-  );
-  return { meta, offeredCourses };
+  if (!ongoingSemesterRegistration) {
+    throw new AppError("No ongoing semester registration found", 404);
+  }
+  // get studeent with the user id
+  const student = await StudentModel.findOne({
+    user: user._id as Types.ObjectId,
+    isDeleted: false,
+  });
+  if (!student) {
+    throw new AppError("Student not found", 404);
+  }
+  //look up the offered courses for the student
+const result = await OfferedCourseModel.aggregate([
+  {
+    $match: {
+      semseterRegistration: ongoingSemesterRegistration._id,
+      academicDepartment: student.academicDept,
+    },
+    
+  },
+  {
+    $lookup:{
+      from:"courses",
+      localField:"course",
+      foreignField:"_id",
+      as:"course",
+    }
+  },
+  {
+    $unwind:"$course",
+  },
+  {
+    $lookup:{
+      from:"enrolledCourses",
+      
+      pipeline:[
+        {
+          $match:{
+            student: student._id,
+            semesterRegistration: ongoingSemesterRegistration._id,
+          },
+        },
+      ],
+      as: "enrolledCourse",
+    },
+  },
+]);
+
+//   const parsed = parseListQuery(query, {
+//     searchableFields: [
+//       "semseterRegistration",
+//       "academicSemester",
+//       "academicFaculty",
+//       "academicDepartment",
+//       "course",
+//       "faculty",
+//     ],
+//     baseFilter: { isDeleted: false },
+//   });
+//   const { meta, data: offeredCourses } = await paginate(
+//     OfferedCourseModel,
+//     parsed, 
+//     (q) =>
+//       q
+//         .populate({
+//           path: "semseterRegistration",
+//           populate: { path: "academicSemester" },
+//         })
+//         .populate({
+//           path: "academicDepartment",
+//           populate: { path: "academicFaculty" },
+//         })
+//         .populate("course")
+//         .populate({
+//           path: "faculty",
+//           populate: { path: "user" },
+//         }),
+//   );
+//   return { meta, offeredCourses };
+return result;
 };
 
 //get single offered course by id
@@ -191,18 +255,21 @@ const deleteOfferedCourseByIdInDB = async (id: string) => {
     throw new AppError("Invalid semester registration ID", 400);
   }
   if (semesterReg.status !== SemesterRegistrationStatus.UPCOMING) {
-    throw new AppError("Semester registration is not upcoming, you can't delete it", 400);
+    throw new AppError(
+      "Semester registration is not upcoming, you can't delete it",
+      400,
+    );
   }
   return await OfferedCourseModel.findByIdAndUpdate(
     id,
     { isDeleted: true },
-    { returnDocument: "after" },  
+    { returnDocument: "after" },
   );
 };
 
 export const OfferedCourseService = {
   createOfferedCourseIntoDB,
-  getAllOfferedCoursesFromDB,
+  getMyOfferedCoursesFromDB,
   getSingleOfferedCourseByIdFromDB,
   updateOfferedCourseByIdInDB,
   deleteOfferedCourseByIdInDB,

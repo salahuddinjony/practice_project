@@ -33,4 +33,7 @@ export default {
   CLOUD_NAME: process.env.CLOUD_NAME as string,
   API_KEY: process.env.API_KEY as string,
   API_SECRET: process.env.API_SECRET as string,
+  SUPER_ADMIN_ID: process.env.SUPER_ADMIN_ID as string,
+  SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD as string,
+  SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL as string,
 };

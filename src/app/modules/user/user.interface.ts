@@ -1,7 +1,8 @@
 import { Model } from "mongoose";
 import { UserRole } from "./user.constant.js";
 
-export type UserRoleEnum = "admin" | "student" | "faculty";
+export type UserRoleEnum = "admin" | "student" | "faculty" | "super_admin";
+export type UserStatusType = "in-progress" | "active" | "inactive" | "pending" | "blocked";
 export interface UserInterface {
   id: string;
   password: string;
@@ -10,7 +11,7 @@ export interface UserInterface {
   needsPasswordReset?: boolean;
   role: UserRoleEnum;
   isDeleted?: boolean;
-  status?: "in-progress" | "active" | "inactive" | "pending" | "blocked";
+  status?: UserStatusType;
 }
 
 export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
