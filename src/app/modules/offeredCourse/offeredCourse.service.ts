@@ -11,10 +11,10 @@ import {
 import { offeredCourse } from "./offeredCourse.interface.js";
 import { OfferedCourseModel } from "./offeredCourse.model.js";
 import { SemesterRegistrationStatus } from "../semisterRegistration/semisterRegistration.constant.js";
-import { UserInterface } from "../user/user.interface.js";
 import { Types } from "mongoose";
 import { TokenPayloadType } from "../../utils/commonTypes/types.js";
 import { StudentModel } from "../student/student.model.js";
+import { EnrolledCourseModel } from "../enrolledCourse/enrolledCourse.model.js";
 
 const createOfferedCourseIntoDB = async (payload: offeredCourse) => {
   //check semester registration is valid or not
@@ -83,7 +83,6 @@ const getMyOfferedCoursesFromDB = async (
   query: Record<string, unknown> = {},
   user: TokenPayloadType,
 ) => {
-
   //get current ongoing semester registration
   const ongoingSemesterRegistration = await SemesterRegistrationModel.findOne({
     status: SemesterRegistrationStatus.ONGOING,
@@ -100,75 +99,212 @@ const getMyOfferedCoursesFromDB = async (
   if (!student) {
     throw new AppError("Student not found", 404);
   }
-  //look up the offered courses for the student
-const result = await OfferedCourseModel.aggregate([
-  {
-    $match: {
-      semseterRegistration: ongoingSemesterRegistration._id,
-      academicDepartment: student.academicDept,
+  // Parse pagination/sort from query (we're not using parsed.filter since we're aggregating)
+  const parsed = parseListQuery(query, {
+    searchableFields: [
+      "section",
+      "course.title",
+      "course.code",
+      "course.prefix",
+      "semseterRegistration.status",
+      "academicDepartment.name",
+    ],
+  });
+
+  // Mongoose accepts "-createdAt title" but aggregation needs an object.
+  const sortObj = String(parsed.sort)
+    .split(" ")
+    .filter(Boolean)
+    .reduce<Record<string, 1 | -1>>((acc, token) => {
+      if (token.startsWith("-")) acc[token.slice(1)] = -1;
+      else acc[token] = 1;
+      return acc;
+    }, {});
+
+  const enrolledCollection = EnrolledCourseModel.collection.name;
+  const semesterRegistrationCollection =
+    SemesterRegistrationModel.collection.name;
+
+  const academicDeptCollection = AcademicDeptModel.collection.name;
+
+  // Look up the offered courses for the student, filter already-enrolled ones, and return meta + offeredCourses
+  const [facet] = await OfferedCourseModel.aggregate([
+    {
+      $match: {
+        semseterRegistration: ongoingSemesterRegistration._id,
+        academicDepartment: student.academicDept,
+        isDeleted: false,
+      },
     },
-    
-  },
-  {
-    $lookup:{
-      from:"courses",
-      localField:"course",
-      foreignField:"_id",
-      as:"course",
-    }
-  },
-  {
-    $unwind:"$course",
-  },
-  {
-    $lookup:{
-      from:"enrolledCourses",
-      
-      pipeline:[
-        {
-          $match:{
-            student: student._id,
-            semesterRegistration: ongoingSemesterRegistration._id,
+    // populate semester registration
+    {
+      $lookup: {
+        from: semesterRegistrationCollection,
+        localField: "semseterRegistration",
+        foreignField: "_id",
+        as: "semseterRegistration",
+      },
+    },
+    { $unwind: "$semseterRegistration" },
+    // populate academic department
+    {
+      $lookup: {
+        from: academicDeptCollection,
+        localField: "academicDepartment",
+        foreignField: "_id",
+        as: "academicDepartment",
+      },
+    },
+    { $unwind: "$academicDepartment" },
+    {
+      $lookup: {
+        from: "courses",
+        localField: "course",
+        foreignField: "_id",
+        as: "course",
+      },
+    },
+
+    { $unwind: "$course" },
+
+    // !important: Apply searchTerm + extra filters (e.g. section) from query params
+    ...(Object.keys(parsed.filter).length ? [{ $match: parsed.filter }] : []),
+    {
+      $lookup: {
+        from: enrolledCollection,
+        let: {
+          currentOngoingSemesterRegistration: ongoingSemesterRegistration._id,
+          studentId: student._id,
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  {
+                    $eq: [
+                      "$semesterRegistration",
+                      "$$currentOngoingSemesterRegistration",
+                    ],
+                  },
+                  { $eq: ["$student", "$$studentId"] },
+                  { $eq: ["$isDeleted", false] },
+                ],
+              },
+            },
+          },
+          { $project: { course: 1 } },
+        ],
+        as: "enrolledCourse",
+      },
+    },
+    {
+      $lookup: {
+        from: enrolledCollection,
+        let: {
+          studentId: student._id,
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$isCourseCompleted", true] },
+                  { $eq: ["$student", "$$studentId"] },
+                  { $eq: ["$isDeleted", false] },
+                ],
+              },
+            },
+          },
+          { $project: { course: 1 } },
+        ],
+        as: "enrolledCompletedCourse",
+      },
+    },
+    {
+      $addFields: {
+        completedCourseIds: {
+          // * Map means we are going to return an array of course ids with looping from the enrolledCompletedCourse array
+          $map: {
+            input: "$enrolledCompletedCourse",
+            as: "completedCourse",
+            in: "$$completedCourse.course",
           },
         },
-      ],
-      as: "enrolledCourse",
+      },
     },
-  },
-]);
 
-//   const parsed = parseListQuery(query, {
-//     searchableFields: [
-//       "semseterRegistration",
-//       "academicSemester",
-//       "academicFaculty",
-//       "academicDepartment",
-//       "course",
-//       "faculty",
-//     ],
-//     baseFilter: { isDeleted: false },
-//   });
-//   const { meta, data: offeredCourses } = await paginate(
-//     OfferedCourseModel,
-//     parsed, 
-//     (q) =>
-//       q
-//         .populate({
-//           path: "semseterRegistration",
-//           populate: { path: "academicSemester" },
-//         })
-//         .populate({
-//           path: "academicDepartment",
-//           populate: { path: "academicFaculty" },
-//         })
-//         .populate("course")
-//         .populate({
-//           path: "faculty",
-//           populate: { path: "user" },
-//         }),
-//   );
-//   return { meta, offeredCourses };
-return result;
+    {
+      $addFields: {
+        isPrerequisiteCompleted: {
+          $or: [
+            { $eq: ["$course.prerequisiteCources.course._id", []] },
+            {
+              $setIsSubset: [
+                "$course.prerequisiteCources.course._id",
+                "$completedCourseIds",
+              ],
+            },
+          ],
+        },
+        isAlreadyEnrolled: {
+          $in: [
+            "$course._id",
+            {
+              $map: {
+                input: "$enrolledCourse",
+                as: "enroll",
+                in: "$$enroll.course",
+              },
+            },
+          ],
+        },
+      },
+    },
+    { $match: { isAlreadyEnrolled: false, isPrerequisiteCompleted: true } },
+    {
+      $project: {
+        isAlreadyEnrolled: 0,
+        enrolledCourse: 0,
+        completedCourseIds: 0,
+        isPrerequisiteCompleted: 0,
+        enrolledCompletedCourse: 0,
+      },
+    },
+
+    {
+      // facet means we are going to return two arrays one is the offered courses and the other is the meta data
+      $facet: {
+        offeredCourses: [
+          { $sort: Object.keys(sortObj).length ? sortObj : { createdAt: -1 } },
+          { $skip: parsed.skip },
+          { $limit: parsed.limit },
+        ],
+        meta: [
+          { $count: "total" },
+          {
+            $addFields: {
+              page: parsed.page,
+              limit: parsed.limit,
+              totalPages: { $ceil: { $divide: ["$total", parsed.limit] } },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const meta =
+    facet?.meta?.[0] ??
+    ({
+      total: 0,
+      page: parsed.page,
+      limit: parsed.limit,
+      totalPages: 0,
+    } as const);
+
+  const offeredCourses = facet?.offeredCourses ?? [];
+  return { meta, offeredCourses };
 };
 
 //get single offered course by id
