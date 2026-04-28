@@ -9,3 +9,4 @@ export type SemesterRegistration = {
   maxCredit: number;
   isDeleted?: boolean; // Optional field to indicate if the registration is deleted
 };
+// TODO: 
