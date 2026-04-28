@@ -14,11 +14,11 @@ const authLogin = catchAsync(
       httpOnly: true,
       secure: config.DEVELOPMENT_MODE,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      // sameSite: "strict",
-      // path: "/",
-      // domain: config.DOMAIN,
-      // signed: true,
-      // expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      sameSite: "none",
+      path: "/",
+      domain: config.DOMAIN,
+      signed: true,
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
     if (result) {
       sendResponse(res, {
