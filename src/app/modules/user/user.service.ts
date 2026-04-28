@@ -24,7 +24,7 @@ import {
 const createStudentIntoDB = async (
   password: string,
   StudentData: Student,
-  file: Express.Multer.File,
+  file?: Express.Multer.File,
 ) => {
   // Simulating saving the user data to the database
   const userData: Partial<UserInterface> = {};
@@ -82,12 +82,16 @@ const createStudentIntoDB = async (
     StudentData.id = createNewUser!.id;
     StudentData.user = createNewUser!._id;
 
-    const { path } = file;
-    const imageName = `${createNewUser?.id}-${StudentData?.name?.firstName}`;
-    const { secure_url } = (await sendImageToCloudinary(path, imageName)) as {
-      secure_url: string;
-    };
-    StudentData.profileImage = secure_url;
+    if (file?.path) {
+      const imageName = `${createNewUser?.id}-${StudentData?.name?.firstName}`;
+      const { secure_url } = (await sendImageToCloudinary(
+        file.path,
+        imageName,
+      )) as {
+        secure_url: string;
+      };
+      StudentData.profileImage = secure_url;
+    }
     // Create the student document in the database using the StudentModel, passing in the student data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and student records are created successfully or rolled back together in case of any errors.
     const [createNewStudent] = await StudentModel.create([StudentData], {
       session,
@@ -111,7 +115,7 @@ const createStudentIntoDB = async (
 const createFacultyIntoDB = async (
   password: string,
   FacultyData: Faculty,
-  file: Express.Multer.File,
+  file?: Express.Multer.File,
 ) => {
   // Simulating saving the user data to the database
   const userData: Partial<UserInterface> = {};
@@ -131,13 +135,16 @@ const createFacultyIntoDB = async (
     // Keep user and student creation atomic to avoid partial records.
     const [createNewUser] = await UserModel.create([userData], { session });
 
-    const { path } = file;
-    const imageName = `${createNewUser?.id}-${FacultyData?.name?.firstName}`;
-    const { secure_url } = (await sendImageToCloudinary(path, imageName)) as {
-      secure_url: string;
-    };
-
-    FacultyData.profileImage = secure_url;
+    if (file?.path) {
+      const imageName = `${createNewUser?.id}-${FacultyData?.name?.firstName}`;
+      const { secure_url } = (await sendImageToCloudinary(
+        file.path,
+        imageName,
+      )) as {
+        secure_url: string;
+      };
+      FacultyData.profileImage = secure_url;
+    }
     FacultyData.id = createNewUser!.id;
     FacultyData.user = createNewUser!._id;
 
@@ -163,7 +170,7 @@ const createFacultyIntoDB = async (
 const createAdminIntoDB = async (
   password: string,
   AdminData: Admin,
-  file: Express.Multer.File,
+  file?: Express.Multer.File,
 ) => {
   // Simulating saving the user data to the database
   const userData: Partial<UserInterface> = {};
@@ -186,12 +193,16 @@ const createAdminIntoDB = async (
     AdminData.id = createNewUser!.id;
     AdminData.user = createNewUser!._id;
 
-    const { path } = file;
-    const imageName = `${createNewUser?.id}-${AdminData?.name?.firstName}`;
-    const { secure_url } = (await sendImageToCloudinary(path, imageName)) as {
-      secure_url: string;
-    };
-    AdminData.profileImage = secure_url;
+    if (file?.path) {
+      const imageName = `${createNewUser?.id}-${AdminData?.name?.firstName}`;
+      const { secure_url } = (await sendImageToCloudinary(
+        file.path,
+        imageName,
+      )) as {
+        secure_url: string;
+      };
+      AdminData.profileImage = secure_url;
+    }
     // Create the admin document in the database using the AdminModel, passing in the admin data and the session to ensure that it is part of the same transaction as the user creation. This will allow us to maintain data integrity and ensure that both the user and admin records are created successfully or rolled back together in case of any errors.
     const [createNewAdmin] = await AdminModel.create([AdminData], {
       session,

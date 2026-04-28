@@ -4,6 +4,7 @@ import sendResponse from "../../utils/response/responseSend.js";
 import catchAsync from "../../utils/CatchAsync.js";
 import { checkCommonValidation } from "../../utils/checkCommonValidation.js";
 import { EnrolledCourseService } from "./enrolledCourse.service.js";
+import { UserRole } from "../user/user.constant.js";
 
 const createEnrolledCourse = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -75,6 +76,28 @@ const getEnrolledCourseById = catchAsync(
   },
 );
 
+//get my enrolled courses
+const getMyEnrolledCourses = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (user?.role !== UserRole.STUDENT) {
+      return next(
+        new AppError("You are not authorized to access this resource", 403),
+      );
+    }
+    const result = await EnrolledCourseService.getMyEnrolledCoursesFromDB(user);
+    if (result) {
+      sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "My enrolled courses retrieved successfully",
+        data: result,
+      });
+    } else {
+      next(new AppError("Failed to retrieve my enrolled courses", 404));
+    }
+  },
+);
 // update user info-PUT
 const updateEnrolledCourseById = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -82,11 +105,11 @@ const updateEnrolledCourseById = catchAsync(
       req.params.id as string,
       next,
     );
-  
+
     const updatedData = req.body; // Get updated course data from the request body
     const result = await EnrolledCourseService.updateEnrolledCourseByIdInDB(
       enrolledCourseId as string,
-      updatedData
+      updatedData,
     );
     if (result) {
       // Check if result is not null or undefined
@@ -130,6 +153,7 @@ export const EnrolledCourseController = {
   createEnrolledCourse,
   getAllEnrolledCourses,
   getEnrolledCourseById,
+  getMyEnrolledCourses,
   updateEnrolledCourseById,
   deleteEnrolledCourseById,
 };

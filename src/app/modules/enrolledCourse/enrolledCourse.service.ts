@@ -11,11 +11,12 @@ import SemesterRegistrationModel from "../semisterRegistration/semisterRegistrat
 import { StudentModel } from "../student/student.model.js";
 import { EnrolledCourse } from "./enrolledCourse.interface.js";
 import { EnrolledCourseModel } from "./enrolledCourse.model.js";
-import { startSession } from "mongoose";
+import { startSession, Types } from "mongoose";
 import {
   evaluateCourseMarks,
   mergeAssessmentMarks,
 } from "./utils/enrolledCourse.marksCalculation.js";
+import { TokenPayloadType } from "../../utils/commonTypes/types.js";
 
 const createEnrolledCourseIntoDB = async (
   userId: string,
@@ -284,8 +285,80 @@ const getAllEnrolledCoursesFromDB = async (
   );
   return { meta, enrolledCourses };
 };
-const getEnrolledCourseByIdFromDB = async (courseId: string) => {
-  return {};
+const getEnrolledCourseByIdFromDB = async (enrolledCourseId: string) => {
+  const enrolledCourse = await EnrolledCourseModel.findOne({
+    _id: enrolledCourseId,
+    isDeleted: false,
+  });
+  if (!enrolledCourse) {
+    throw new AppError("Enrolled course not found", 404);
+  }
+  return enrolledCourse;
+};
+
+// get my enrolled courses from DB
+const getMyEnrolledCoursesFromDB = async (
+  user: TokenPayloadType,
+  query: Record<string, unknown> = {},
+) => {
+  //check this student is valid or not
+  const student = await StudentModel.findOne({
+    user: user._id as Types.ObjectId,
+    isDeleted: false,
+  });
+  if (!student) {
+    throw new AppError("Student not found", 404);
+  }
+  const parsed = parseListQuery(query, {
+    searchableFields: [
+      "academicSemester.name",
+      "academicSemester.startMonth",
+      "academicSemester.endMonth",
+      "semesterRegistration.status",
+      "academicDepartment.name",
+      "academicFaculty.name",
+      "course.title",
+      "course.prefix",
+    ],
+    baseFilter: { isDeleted: false, student: student._id },
+  });
+  const { meta, data: enrolledCourses } = await paginate(
+    EnrolledCourseModel,
+    parsed,
+    (q) =>
+      q
+        .populate(
+          "academicSemester academicDepartment academicFaculty course faculty",
+        )
+        .populate({
+          path: "semesterRegistration",
+          populate: {
+            path: "academicSemester",
+          },
+        })
+        .populate({
+          path: "student",
+          populate: [
+            {
+              path: "academicDept",
+              populate: {
+                path: "academicFaculty",
+              },
+            },
+            { path: "user" },
+          ],
+        })
+        .populate({
+          path: "offeredCourse",
+          populate: [
+            { path: "course" },
+            { path: "faculty" },
+            { path: "academicDepartment" },
+            { path: "semseterRegistration" },
+          ],
+        }),
+  );
+  return { meta, enrolledCourses };
 };
 
 //update enrolled course by id in DB
@@ -359,4 +432,5 @@ export const EnrolledCourseService = {
   getEnrolledCourseByIdFromDB,
   updateEnrolledCourseByIdInDB,
   deleteEnrolledCourseByIdFromDB,
+  getMyEnrolledCoursesFromDB,
 };

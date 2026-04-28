@@ -24,10 +24,15 @@ router.post(
 // Get all enrolled courses
 router.get(
   "/get-all-enrolled-courses",
-  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STUDENT),
+  authorizationValidate(UserRole.SUPER_ADMIN, UserRole.ADMIN),
   EnrolledCourseController.getAllEnrolledCourses,
 );
-
+//get my enrolled courses
+router.get(
+  "/get-my-enrolled-courses",
+  authorizationValidate(UserRole.STUDENT),
+  EnrolledCourseController.getMyEnrolledCourses,
+); 
 // Get enrolled course by ID
 router.get(
   "/get-enrolled-course/:id",
